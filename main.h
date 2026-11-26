@@ -16,7 +16,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
   Modified for Switch 2: Vita-only headers and the FTP hook are left out,
-  and the data folder is sdmc:/switch/ounceshell/ (the port is OunceShell).
+  and the data folder is sdmc:/switch/ounceshell-pro/ (the port is OunceShell).
 */
 
 #ifndef __MAIN_H__
@@ -71,7 +71,7 @@
 
 // VitaShell's data folder, with the trailing slash
 #ifdef __SWITCH2__
-#define VITASHELL_DATA_PATH "sdmc:/switch/ounceshell/"
+#define VITASHELL_DATA_PATH "sdmc:/switch/ounceshell-pro/"
 #else
 #define VITASHELL_DATA_PATH "ux0:VitaShell/"
 #endif
