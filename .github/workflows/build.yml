@@ -22,6 +22,6 @@ jobs:
           test -s build/switch2/ounceshell-pro.nro
       - uses: actions/upload-artifact@v4
         with:
-          name: OunceShell-Pro-v0.1.0-alpha
+          name: OunceShell-Pro-v0.2.0-alpha
           path: build/switch2/ounceshell-pro.nro
           if-no-files-found: error
