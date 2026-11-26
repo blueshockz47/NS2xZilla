@@ -50,8 +50,13 @@
 #define CMD_BUFFERSIZE  4096
 #else
 /* we have a lot of memory to waste on the Switch */
+#ifdef __SWITCH2__
+#define XFER_BUFFERSIZE 131072
+#define SOCK_BUFFERSIZE 65536
+#else
 #define XFER_BUFFERSIZE 65536
 #define SOCK_BUFFERSIZE 65536
+#endif
 #define FILE_BUFFERSIZE 1048576
 #define CMD_BUFFERSIZE  4096
 #endif
