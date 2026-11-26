@@ -3211,8 +3211,9 @@ FTP_DECLARE(DELE)
   if(rc != 0)
   {
     /* error unlinking the file */
-    console_print(RED "unlink: %d %s\n" RESET, errno, strerror(errno));
-    ftp_send_response(session, 550, "failed to delete file\r\n");
+    int saved_errno = errno;
+    console_print(RED "unlink: %d %s\n" RESET, saved_errno, strerror(saved_errno));
+    ftp_send_response(session, 550, "failed to delete file: %s\r\n", strerror(saved_errno));
     return;
   }
 
@@ -3379,11 +3380,20 @@ FTP_DECLARE(MKD)
 
   /* try to create the directory */
   rc = mkdir(session->buffer, 0755);
-  if(rc != 0 && errno != EEXIST)
+  if(rc != 0 && errno == EEXIST)
+  {
+    struct stat st;
+    if(stat(session->buffer, &st) == 0 && S_ISDIR(st.st_mode))
+      rc = 0;
+    else
+      errno = EEXIST;
+  }
+  if(rc != 0)
   {
     /* mkdir failure */
-    console_print(RED "mkdir: %d %s\n" RESET, errno, strerror(errno));
-    ftp_send_response(session, 550, "failed to create directory\r\n");
+    int saved_errno = errno;
+    console_print(RED "mkdir: %d %s\n" RESET, saved_errno, strerror(saved_errno));
+    ftp_send_response(session, 550, "failed to create directory: %s\r\n", strerror(saved_errno));
     return;
   }
 
@@ -4003,8 +4013,9 @@ FTP_DECLARE(RMD)
   if(rc != 0)
   {
     /* rmdir error */
-    console_print(RED "rmdir: %d %s\n" RESET, errno, strerror(errno));
-    ftp_send_response(session, 550, "failed to delete directory\r\n");
+    int saved_errno = errno;
+    console_print(RED "rmdir: %d %s\n" RESET, saved_errno, strerror(saved_errno));
+    ftp_send_response(session, 550, "failed to delete directory: %s\r\n", strerror(saved_errno));
     return;
   }
 
