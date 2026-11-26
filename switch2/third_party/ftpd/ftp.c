@@ -357,6 +357,10 @@ static void
 ftp_set_socket_nodelay(int fd)
 {
   int yes = 1;
+#ifdef SO_KEEPALIVE
+  if(setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &yes, sizeof(yes)) != 0)
+    console_print(RED "setsockopt: SO_KEEPALIVE %d %s\n" RESET, errno, strerror(errno));
+#endif
   if(setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes)) != 0)
     console_print(RED "setsockopt: TCP_NODELAY %d %s\n" RESET, errno, strerror(errno));
 }
@@ -1485,7 +1489,11 @@ ftp_session_connect(ftp_session_t *session)
   /* set socket to non-blocking */
   rc = ftp_set_socket_nonblocking(session->data_fd);
   if(rc != 0)
+  {
+    ftp_closesocket(session->data_fd, false);
+    session->data_fd = -1;
     return -1;
+  }
 
   /* connect to peer */
   rc = connect(session->data_fd, (struct sockaddr*)&session->peer_addr,
