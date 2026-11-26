@@ -1,0 +1,27 @@
+name: Build OunceShell Pro
+on:
+  push:
+    branches: [development]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch Switch 2 SDK
+        run: |
+          git clone https://github.com/ouncebrew/ounce-devkit.git "$RUNNER_TEMP/ounce-devkit"
+          git -C "$RUNNER_TEMP/ounce-devkit" checkout 5e957599bd498643d82e5470aec80da67a12685d
+          docker build -t ounce-devkit "$RUNNER_TEMP/ounce-devkit"
+      - name: Compile
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src ounce-devkit make -f switch2/Makefile -j2
+          test -s build/switch2/ounceshell-pro.nro
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OunceShell-Pro-v0.1.0-alpha
+          path: build/switch2/ounceshell-pro.nro
+          if-no-files-found: error
