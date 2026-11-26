@@ -1357,6 +1357,21 @@ ftp_session_new(int listen_fd)
   console_print(CYAN "accepted connection from %s:%u\n" RESET,
                 inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
 
+#ifdef __SWITCH2__
+  /* Bound per-client memory and socket usage. */
+  unsigned int active = 0;
+  for(ftp_session_t *it = sessions; it != NULL; it = it->next)
+    ++active;
+  if(active >= 4)
+  {
+    static const char busy[] = "421 Too many clients, retry later\r\n";
+    send(new_fd, busy, sizeof(busy)-1, MSG_DONTWAIT);
+    close(new_fd);
+    console_print(YELLOW "FTP client limit reached\n" RESET);
+    return;
+  }
+#endif
+
   /* allocate a new session */
   session = (ftp_session_t*)calloc(1, sizeof(ftp_session_t));
   if(session == NULL)
@@ -1834,7 +1849,7 @@ ftp_session_poll(ftp_session_t *session)
         console_print(YELLOW "cmd_fd: revents=0x%08X\n" RESET, pollinfo[0].revents);
 
       /* we need to read a new command */
-      if(pollinfo[0].revents & (POLLERR|POLLHUP))
+      if(pollinfo[0].revents & (POLLERR|POLLHUP|POLLNVAL))
       {
         debug_print("cmd revents=0x%x\n", pollinfo[0].revents);
         ftp_session_close_cmd(session);
@@ -1844,7 +1859,7 @@ ftp_session_poll(ftp_session_t *session)
     }
 
     /* check the data/pasv socket */
-    if(nfds > 1 && pollinfo[1].revents != 0)
+    if(session->cmd_fd >= 0 && nfds > 1 && pollinfo[1].revents != 0)
     {
       switch(session->state)
       {
@@ -1857,7 +1872,7 @@ ftp_session_poll(ftp_session_t *session)
             console_print(YELLOW "pasv_fd: revents=0x%08X\n" RESET, pollinfo[1].revents);
 
           /* we need to accept the PASV connection */
-          if(pollinfo[1].revents & (POLLERR|POLLHUP))
+          if(pollinfo[1].revents & (POLLERR|POLLHUP|POLLNVAL))
           {
             ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
             ftp_send_response(session, 426, "Data connection failed\r\n");
@@ -1884,7 +1899,7 @@ ftp_session_poll(ftp_session_t *session)
             console_print(YELLOW "data_fd: revents=0x%08X\n" RESET, pollinfo[1].revents);
 
           /* we need to transfer data */
-          if(pollinfo[1].revents & (POLLERR|POLLHUP))
+          if(pollinfo[1].revents & (POLLERR|POLLHUP|POLLNVAL))
           {
             ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
             ftp_send_response(session, 426, "Data connection failed\r\n");
