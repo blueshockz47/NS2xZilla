@@ -982,6 +982,16 @@ int browserMain() {
 
     // Draw
     drawShellInfo(file_list.path);
+#ifdef __SWITCH2__
+    // Keep the second path line available for long paths.
+    if (pgf_text_width(file_list.path) < MAX_WIDTH && strlen(file_list.path) < 255) {
+      float hy = START_Y - FONT_Y_SPACE;
+      pgf_draw_text(FILE_X, hy, DATE_TIME_COLOR, "Name");
+      const char *size_label = dir_level == 0 ? "Used / Capacity" : "Size / Type";
+      pgf_draw_text(ALIGN_RIGHT(INFORMATION_X, pgf_text_width(size_label)), hy, DATE_TIME_COLOR, size_label);
+      pgf_draw_text(ALIGN_RIGHT(SCREEN_WIDTH - SHELL_MARGIN_X, pgf_text_width("Modified")), hy, DATE_TIME_COLOR, "Modified");
+    }
+#endif
     drawScrollBar(base_pos, file_list.length);
 #ifdef __SWITCH2__
     if (browserHasFocus())
@@ -1050,6 +1060,13 @@ int browserMain() {
           }
         }
 
+#ifdef __SWITCH2__
+        // A subtle full-row focus background, independent of file type.
+        if (i == rel_pos) {
+          vita2d_draw_rectangle(SHELL_MARGIN_X - 4.0f, y, MARK_WIDTH + 8.0f, FONT_Y_SPACE, 0x303C9AD0);
+          vita2d_draw_rectangle(SHELL_MARGIN_X - 4.0f, y, 3.0f, FONT_Y_SPACE, 0xFFD0A040);
+        }
+#endif
         // Draw icon
         if (icon)
           vita2d_draw_texture(icon, SHELL_MARGIN_X, y + 3.0f);
@@ -1069,7 +1086,7 @@ int browserMain() {
         float x = FILE_X;
 
         char file_name[MAX_PATH_LENGTH];
-        memset(file_name, 0, sizeof(MAX_PATH_LENGTH));
+        memset(file_name, 0, sizeof(file_name));
 
         if (file_entry->is_symlink) {
           snprintf(file_name, MAX_PATH_LENGTH, "%s  → %s",
