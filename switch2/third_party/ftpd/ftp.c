@@ -651,6 +651,11 @@ ftp_session_open_file_read(ftp_session_t *session)
     return -1;
   }
   session->filesize = st.st_size;
+  if(session->filepos > session->filesize)
+  {
+    errno = EINVAL;
+    return -1;
+  }
 
   if(session->filepos != 0)
   {
@@ -678,7 +683,7 @@ ftp_session_read_file(ftp_session_t *session)
 
   /* read file at current position */
   rc = fread(session->buffer, 1, sizeof(session->buffer), session->fp);
-  if(rc < 0)
+  if(ferror(session->fp))
   {
     console_print(RED "fread: %d %s\n" RESET, errno, strerror(errno));
     return -1;
@@ -732,6 +737,14 @@ ftp_session_open_file_write(ftp_session_t *session,
   /* check if this had REST but not APPE */
   if(session->filepos != 0 && !append)
   {
+    /* Reject offsets beyond the existing partial file. */
+    struct stat st;
+    if(fstat(fileno(session->fp), &st) != 0 || st.st_size < 0 ||
+       session->filepos > (uint64_t)st.st_size)
+    {
+      errno = EINVAL;
+      return -1;
+    }
     /* seek to the REST offset */
     rc = fseek(session->fp, session->filepos, SEEK_SET);
     if(rc != 0)
@@ -759,7 +772,7 @@ ftp_session_write_file(ftp_session_t *session)
   rc = fwrite(session->buffer + session->bufferpos,
               1, session->buffersize - session->bufferpos,
               session->fp);
-  if(rc < 0)
+  if(ferror(session->fp))
   {
     console_print(RED "fwrite: %d %s\n" RESET, errno, strerror(errno));
     return -1;
@@ -2716,9 +2729,20 @@ store_transfer(ftp_session_t *session)
         console_print(RED "recv: %d %s\n" RESET, errno, strerror(errno));
       }
 
+      /* Do not acknowledge success until buffered writes and close succeed. */
+      int close_error = 0;
+      if(rc == 0 && session->fp != NULL)
+      {
+        close_error = fclose(session->fp);
+        session->fp = NULL;
+        if(close_error != 0)
+          console_print(RED "fclose: %d %s\n" RESET, errno, strerror(errno));
+      }
       ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
 
-      if(rc == 0)
+      if(rc == 0 && close_error != 0)
+        ftp_send_response(session, 451, "Failed to finalize file\r\n");
+      else if(rc == 0)
         ftp_send_response(session, 226, "OK\r\n");
       else
         ftp_send_response(session, 426, "Connection broken during transfer\r\n");
@@ -3214,6 +3238,7 @@ FTP_DECLARE(FEAT)
     " MDTM\r\n"
     " MLST Type%s;Size%s;Modify%s;Perm%s;UNIX.mode%s;\r\n"
     " PASV\r\n"
+    " REST STREAM\r\n"
     " SIZE\r\n"
     " TVFS\r\n"
     " UTF8\r\n"
@@ -3925,8 +3950,13 @@ FTP_DECLARE(REST)
   }
 
   /* set the restart offset */
+  if(*args == '\0' || pos > INT64_MAX)
+  {
+    ftp_send_response(session, 504, "invalid argument\r\n");
+    return;
+  }
   session->filepos = pos;
-  ftp_send_response(session, 200, "OK\r\n");
+  ftp_send_response(session, 350, "Restart position accepted\r\n");
 }
 
 /*! @fn static void RETR(ftp_session_t *session, const char *args)
