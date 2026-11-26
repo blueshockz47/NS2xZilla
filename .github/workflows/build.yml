@@ -11,6 +11,9 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Check PASV response format
+        run: |
+          python3 -c 'from pathlib import Path; s=Path("switch2/third_party/ftpd/ftp.c").read_text(); assert "227, \"Entering Passive Mode (%s)\\r\\n\"" in s'
       - name: Fetch Switch 2 SDK
         run: |
           git clone https://github.com/ouncebrew/ounce-devkit.git "$RUNNER_TEMP/ounce-devkit"
@@ -22,6 +25,6 @@ jobs:
           test -s build/switch2/ounceshell-pro.nro
       - uses: actions/upload-artifact@v4
         with:
-          name: OunceShell-Pro-v0.2.0-alpha
+          name: OunceShell-Pro-v0.3.0-alpha
           path: build/switch2/ounceshell-pro.nro
           if-no-files-found: error
