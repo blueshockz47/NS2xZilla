@@ -39,6 +39,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <stdarg.h>
+#include <errno.h>
+#include <stdatomic.h>
 
 /* How long the server thread sleeps between loops. */
 #define LOOP_INTERVAL_NS 1000000L
@@ -49,8 +52,34 @@
 
 static pthread_t server_thread;
 static int server_thread_started;
-static volatile int stop_requested;
-static volatile int serving;
+static atomic_int stop_requested;
+static atomic_int serving;
+
+/* Bounded diagnostic log; omit command arguments and raw FTP replies. */
+static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
+static void log_event(const char *format, ...) {
+  int saved_errno = errno;
+  pthread_mutex_lock(&log_lock);
+  const char *path = "sdmc:/switch/ounceshell-pro/ftp-diagnostics.log";
+  FILE *fp = fopen(path, "a+");
+  if (fp) {
+    if (fseek(fp, 0, SEEK_END) == 0 && ftell(fp) >= 512 * 1024) {
+      fclose(fp);
+      fp = fopen(path, "w");
+    }
+    if (fp) {
+      fprintf(fp, "[%lld] ", (long long)time(NULL));
+      va_list args;
+      va_start(args, format);
+      vfprintf(fp, format, args);
+      va_end(args);
+      fputc('\n', fp);
+      fclose(fp);
+    }
+  }
+  pthread_mutex_unlock(&log_lock);
+  errno = saved_errno;
+}
 
 static void sleepFor(time_t seconds, long nanoseconds) {
   struct timespec interval = { .tv_sec = seconds, .tv_nsec = nanoseconds };
@@ -63,16 +92,22 @@ static void *serve(void *argument) {
   while (!stop_requested) {
     loop_status_t status = ftp_loop();
 
-    if (status == LOOP_EXIT)
+    if (status == LOOP_EXIT) {
+      log_event("FTP loop exit");
       break;
+    }
 
     if (status == LOOP_RESTART) {
+      log_event("Network restart requested");
       // The network went down: start again once it is back.
       ftp_exit();
-      while (!stop_requested && ftp_init() != 0)
+      while (!stop_requested && ftp_init() != 0) {
+        log_event("FTP restart failed; retrying");
         sleepFor(RESTART_INTERVAL_S, 0);
+      }
       if (stop_requested)
         break;
+      log_event("FTP restarted");
       continue;
     }
 
@@ -81,6 +116,7 @@ static void *serve(void *argument) {
 
   ftp_exit();
   serving = 0;
+  log_event("FTP thread stopped");
   return NULL;
 }
 
@@ -128,6 +164,7 @@ int ftpvita_init(char *vita_ip, unsigned short int *vita_port) {
 
   snprintf(vita_ip, 16, "%s", info.ip_address);
   *vita_port = FTP_LISTEN_PORT;
+  log_event("FTP started on port %u", (unsigned)*vita_port);
   return 0;
 }
 
@@ -150,11 +187,25 @@ void console_set_status(const char *format, ...) {
 }
 
 void console_print(const char *format, ...) {
-  (void)format;
+  /* Log only known event formats; never log raw commands or replies. */
+  if (strstr(format, "accepted connection") || strstr(format, "closing connection") ||
+      strstr(format, "connected to") || strstr(format, "revents=") ||
+      strstr(format, "errno") || strstr(format, ": %d %s") ||
+      strstr(format, "only sent") || strstr(format, "failed to allocate")) {
+    /* Format strings with file paths are excluded by the allowlist below. */
+    if (strstr(format, "'%s'") || strstr(format, "%s %s")) return;
+    char line[256];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(line, sizeof(line), format, args);
+    va_end(args);
+    log_event("%s", line);
+  }
 }
 
 void debug_print(const char *format, ...) {
-  (void)format;
+  if (strstr(format, "peer closed") || strstr(format, "disconnected from peer") || strstr(format, "exiting ftp"))
+    log_event("%s", format);
 }
 
 void console_render(void) {
