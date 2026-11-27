@@ -289,8 +289,7 @@ void settingsMenuTap(float tx,float ty){
   if(settings_menu.status!=SETTINGS_MENU_OPENED && settings_menu.status!=SETTINGS_MENU_OPENING) return;
   float x=settingsPanelX(),y=settingsPanelY();
   if(tx<x||tx>SCREEN_WIDTH-x||ty<y||ty>y+220){closeSettingsMenu();return;}
-  if(ty>=y+48&&ty<y+92){switch2_orientation=(switch2_orientation+(tx<SCREEN_HALF_WIDTH?3:1))%4;changed=1;saveSettingsConfig();}
-  else if(ty>=y+125&&ty<y+185) exitShell();
+  if(ty>=y+125&&ty<y+185) exitShell();
 }
 #endif
 void drawSettingsMenu() {
@@ -321,11 +320,10 @@ void drawSettingsMenu() {
   float px=settingsPanelX(),py=settingsPanelY();
   vita2d_draw_rectangle(px,py,SCREEN_WIDTH-2*px,220,SETTINGS_MENU_COLOR);
   pgf_draw_text((SCREEN_WIDTH-pgf_text_width("Settings"))/2,py+12,SETTINGS_MENU_TITLE_COLOR,"Settings");
-  vita2d_draw_rectangle(px+8,py+48,SCREEN_WIDTH-2*px-16,44,settings_menu.entry_sel==0?SETTINGS_MENU_FOCUS_COLOR:SETTINGS_MENU_COLOR);
-  pgf_draw_text(px+16,py+59,SETTINGS_MENU_ITEM_COLOR,"Screen rotation");
-  const char *orientation=orientation_options[switch2_orientation];
-  pgf_draw_text(SCREEN_WIDTH-px-16-pgf_text_width(orientation),py+59,SETTINGS_MENU_OPTION_COLOR,orientation);
-  vita2d_draw_rectangle(px+8,py+125,SCREEN_WIDTH-2*px-16,60,settings_menu.entry_sel==1?SETTINGS_MENU_FOCUS_COLOR:SETTINGS_MENU_COLOR);
+  pgf_draw_text((SCREEN_WIDTH-pgf_text_width("Quick Theme Change"))/2,py+48,SETTINGS_MENU_OPTION_COLOR,"Quick Theme Change");
+  pgf_draw_text((SCREEN_WIDTH-pgf_text_width("Tap the theme name in File Manager"))/2,py+76,SETTINGS_MENU_ITEM_COLOR,"Tap the theme name in File Manager");
+  pgf_draw_text((SCREEN_WIDTH-pgf_text_width("to change themes instantly."))/2,py+98,SETTINGS_MENU_ITEM_COLOR,"to change themes instantly.");
+  vita2d_draw_rectangle(px+8,py+125,SCREEN_WIDTH-2*px-16,60,SETTINGS_MENU_FOCUS_COLOR);
   pgf_draw_text((SCREEN_WIDTH-pgf_text_width("Exit NS2xZilla"))/2,py+142,SETTINGS_MENU_ITEM_COLOR,"Exit NS2xZilla");
   return;
 #else
@@ -400,6 +398,9 @@ void settingsDisagree() {
 
 void settingsMenuCtrl() {
 #ifdef __SWITCH2__
+  if(pressed_pad[PAD_START]||pressed_pad[PAD_CANCEL])closeSettingsMenu();
+  else if(pressed_pad[PAD_ENTER])exitShell();
+  return;
 #endif
   SettingsMenuOption *option = &settings_menu_entries[settings_menu.entry_sel].options[settings_menu.option_sel];
 
