@@ -91,7 +91,7 @@ static void saveView(void) { char v=grid_view?'1':'0'; WriteFile(VIEW_PREF,&v,1)
 #define GRID_COLS 5
 #define GRID_COUNT 15
 #define GRID_W 184.0f
-#define GRID_H 120.0f
+#define GRID_H 116.0f
 #define BROWSER_TOP (START_Y+22.0f)
 static void gridFocus(int pos) {
   if (file_list.length <= 0) { base_pos=rel_pos=0; return; }
@@ -896,7 +896,7 @@ static void fileBrowserHandleSymlink(FileListEntry *file_entry) {
 
 // The bar behind the hints, from below the file list (which ends at 478)
 // to the bottom of the screen.
-#define HINT_BAR_TOP 484.0f
+#define HINT_BAR_TOP 470.0f
 
 // A theme with a browser background but no CONTROL_HINTS_BAR_COLOR most
 // likely paints the Vita's button legend there; this bar covers it.
@@ -989,9 +989,10 @@ static void drawControlHints(void) {
   for(int n=0;n<6;n++) { float x=toolbarEdge(n),w=toolbarEdge(n+1)-x; const char *label=touch_select?select[n]:pasting?paste[n]:normal[n]; unsigned int bg=backgrounds[palette], color=0xFFFFFFFF;
     if(touch_select) { if(n==0||n==4) bg=0xFF995A23; if(n==1||n==2) { bg=0xFF2CB5E6; color=0xFF202020; } if(n==3) bg=0xFF3434B9; if(n==5) bg=0xFF436932; if(n<4&&(!mark_list.length||(n==2&&mark_list.length!=1))) { bg=backgrounds[palette]; color=0xFFAAAAAA; } }
     else if(!pasting&&n==0&&ftpvita_is_initialized()) bg=0xFF365E30;
-    roundedBox(x+5,HINT_BAR_TOP+(!touch_select&&!pasting&&n==5?19:24),w-10,!touch_select&&!pasting&&n==5?39:34,8,bg);
-    if(!touch_select&&!pasting&&n==5) { float sw=(w-20)/3; roundedBox(x+10,HINT_BAR_TOP+51,sw,5,2,0xFFB75D24); roundedBox(x+10+sw,HINT_BAR_TOP+51,sw,5,2,0xFF3A3AC7); roundedBox(x+10+2*sw,HINT_BAR_TOP+51,sw,5,2,0xFF35BFEF); }
-    pgf_draw_text(x+(w-pgf_text_width(label))/2,HINT_BAR_TOP+29,color,label);
+    if(!touch_select&&!pasting&&n==5) bg=shade(accents[palette],48);
+    roundedBox(x+5,HINT_BAR_TOP+(!touch_select&&!pasting&&n==5?22:34),w-10,!touch_select&&!pasting&&n==5?50:34,8,bg);
+    if(!touch_select&&!pasting&&n==5) { float sw=(w-20)/3; roundedBox(x+10,HINT_BAR_TOP+63,sw,5,2,0xFFB75D24); roundedBox(x+10+sw,HINT_BAR_TOP+63,sw,5,2,0xFF3A3AC7); roundedBox(x+10+2*sw,HINT_BAR_TOP+63,sw,5,2,0xFF35BFEF); }
+    pgf_draw_text(x+(w-pgf_text_width(label))/2,HINT_BAR_TOP+39,color,label);
   }
 
 }
@@ -1060,7 +1061,7 @@ int browserMain() {
       gesture=0;
     }
     if (gesture && browserHasFocus()) {
-      if(gesture==1 && ty>=HINT_BAR_TOP+24 && tx>=0 && tx<SCREEN_WIDTH) { int slot=0; while(slot<5 && tx>=toolbarEdge(slot+1)) slot++; if(touch_select) { if(slot==5) { touch_select=0; fileListEmpty(&mark_list); } else if(slot==4) { fileListEmpty(&mark_list); for(FileListEntry *e=file_list.head;e;e=e->next) if(strcmp(e->name,DIR_UP)!=0 && dir_level>0) fileListAddEntry(&mark_list,fileListCopyEntry(e),SORT_NONE); } else if(mark_list.length>0 && dir_level>0) { setFocusOnFilename(mark_list.head->name); setContextMenuMainVisibilities(); int names[]={COPY,MOVE,RENAME,DELETE}; for(int j=0;j<context_menu_main.n_entries;j++) if(context_menu_main.entries[j].name==names[slot] && context_menu_main.entries[j].visibility==CTX_VISIBLE && (slot!=2 || mark_list.length==1)) { context_menu_main.callback(j,context_menu_main.context); if(slot<2) { touch_select=0; fileListEmpty(&mark_list); } break; } } } else if(copy_list.length>0 && slot==2) { if(dir_level>0 && !isInArchive() && file_list.length>0) { setContextMenuMainVisibilities(); for(int j=0;j<context_menu_main.n_entries;j++) if(context_menu_main.entries[j].name==PASTE && context_menu_main.entries[j].visibility==CTX_VISIBLE) { context_menu_main.callback(j,context_menu_main.context); break; } } } else if(copy_list.length>0 && slot==3) { fileListEmpty(&copy_list); } else { int keys[]={PAD_SELECT,PAD_START,PAD_CANCEL,PAD_ENTER,PAD_TRIANGLE,PAD_SQUARE}; if(copy_list.length>0) { int pk[]={PAD_ENTER,PAD_CANCEL,PAD_ENTER,PAD_CANCEL,PAD_START,PAD_SELECT}; pressed_pad[pk[slot]]=1; } else if(slot==5) touch_select=1; else pressed_pad[keys[slot]]=1; } last_tap_pos=-1; }
+      if(gesture==1 && ty>=HINT_BAR_TOP+22 && tx>=0 && tx<SCREEN_WIDTH) { int slot=0; while(slot<5 && tx>=toolbarEdge(slot+1)) slot++; if(touch_select) { if(slot==5) { touch_select=0; fileListEmpty(&mark_list); } else if(slot==4) { fileListEmpty(&mark_list); for(FileListEntry *e=file_list.head;e;e=e->next) if(strcmp(e->name,DIR_UP)!=0 && dir_level>0) fileListAddEntry(&mark_list,fileListCopyEntry(e),SORT_NONE); } else if(mark_list.length>0 && dir_level>0) { setFocusOnFilename(mark_list.head->name); setContextMenuMainVisibilities(); int names[]={COPY,MOVE,RENAME,DELETE}; for(int j=0;j<context_menu_main.n_entries;j++) if(context_menu_main.entries[j].name==names[slot] && context_menu_main.entries[j].visibility==CTX_VISIBLE && (slot!=2 || mark_list.length==1)) { context_menu_main.callback(j,context_menu_main.context); if(slot<2) { touch_select=0; fileListEmpty(&mark_list); } break; } } } else if(copy_list.length>0 && slot==2) { if(dir_level>0 && !isInArchive() && file_list.length>0) { setContextMenuMainVisibilities(); for(int j=0;j<context_menu_main.n_entries;j++) if(context_menu_main.entries[j].name==PASTE && context_menu_main.entries[j].visibility==CTX_VISIBLE) { context_menu_main.callback(j,context_menu_main.context); break; } } } else if(copy_list.length>0 && slot==3) { fileListEmpty(&copy_list); } else { int keys[]={PAD_SELECT,PAD_START,PAD_CANCEL,PAD_ENTER,PAD_TRIANGLE,PAD_SQUARE}; if(copy_list.length>0) { int pk[]={PAD_ENTER,PAD_CANCEL,PAD_ENTER,PAD_CANCEL,PAD_START,PAD_SELECT}; pressed_pad[pk[slot]]=1; } else if(slot==5) touch_select=1; else pressed_pad[keys[slot]]=1; } last_tap_pos=-1; }
       else if(gesture==1 && ty>=START_Y-FONT_Y_SPACE && ty<START_Y+8 && tx>=SHELL_MARGIN_X && tx<180) { nextPalette(); }
       else if(gesture>=3) { int pos=base_pos+rel_pos+(gesture==3?1:-1)*(grid_view?GRID_COLS:4); if(grid_view) gridFocus(pos); else if(file_list.length>0) { pos=MAX(0,MIN(pos,file_list.length-1)); base_pos=MAX(0,MIN(pos,MAX(0,file_list.length-MAX_ENTRIES))); rel_pos=pos-base_pos; } last_tap_pos=-1; }
       else if(gesture==1 && ty>=START_Y-FONT_Y_SPACE && ty<START_Y+8 && tx>=185 && tx<SCREEN_WIDTH-225) { if(tx>=SCREEN_WIDTH-265) { search_query[0]=0; search_found=0; } else search_pending=initImeDialog("Search files", search_query, 30, 0, 0, 0)>=0; last_tap_pos=-1; }
