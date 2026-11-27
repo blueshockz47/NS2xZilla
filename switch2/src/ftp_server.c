@@ -131,6 +131,7 @@ static void *serve(void *argument) {
       recovering = 0;
       if (stop_requested)
         break;
+      sample=monotonic_seconds(); last_up=atomic_load(&uploaded); last_down=atomic_load(&downloaded);
       log_event("FTP restarted");
       continue;
     }
