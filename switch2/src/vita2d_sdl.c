@@ -142,7 +142,7 @@ int vita2d_init(void) {
   int window_width, window_height;
   getWindowSize(&window_width, &window_height);
 
-  window = SDL_CreateWindow("OunceShell", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+  window = SDL_CreateWindow("OunceShell Pro", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
                             window_width, window_height, 0);
   if (!window) {
     fprintf(stderr, "vita2d: window: %s\n", SDL_GetError());
@@ -212,6 +212,7 @@ static void followDisplayResolution(void) {
 
 void vita2d_start_drawing(void) {
   followDisplayResolution();
+  updateOutputScale();
 
   clipping_enabled = 0;
   SDL_RenderSetClipRect(renderer, NULL);
