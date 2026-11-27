@@ -265,7 +265,7 @@ static void applyClipping(void) {
 
 void vita2d_enable_clipping(void) {
   clipping_enabled = 1;
-  applyClipping();
+  /* The following set_clip_rectangle applies the new bounds. */
 }
 
 void vita2d_disable_clipping(void) {
@@ -288,7 +288,7 @@ void vita2d_set_clip_rectangle(int x_min, int y_min, int x_max, int y_max) {
   clip_rectangle.y = y_min;
   clip_rectangle.w = x_max > x_min ? x_max - x_min : 0;
   clip_rectangle.h = y_max > y_min ? y_max - y_min : 0;
-  applyClipping();
+  if (clipping_enabled) applyClipping();
 }
 
 void vita2d_draw_rectangle(float x, float y, float w, float h, unsigned int color) {
