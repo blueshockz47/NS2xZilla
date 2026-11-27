@@ -299,11 +299,19 @@ int drawUncommonDialog() {
     return 0;
 
   // Dialog background
+#ifdef __SWITCH2__
+  float w=uncommon_dialog.width*uncommon_dialog.scale,h=uncommon_dialog.height*uncommon_dialog.scale;
+  float x=uncommon_dialog.x+(uncommon_dialog.width-w)/2,y=uncommon_dialog.y+(uncommon_dialog.height-h)/2;
+  vita2d_draw_rectangle(0,0,SCREEN_WIDTH,SCREEN_HEIGHT,0x80000000);
+  vita2d_draw_rectangle(x,y,w,h,CONTEXT_MENU_FOCUS_COLOR);
+  if(w>4&&h>4) vita2d_draw_rectangle(x+2,y+2,w-4,h-4,DIALOG_BG_COLOR);
+#else
   vita2d_draw_texture_scale_rotate_hotspot(dialog_image, uncommon_dialog.x + uncommon_dialog.width / 2.0f,
                                            uncommon_dialog.y + uncommon_dialog.height / 2.0f,
                                            uncommon_dialog.scale * (uncommon_dialog.width / vita2d_texture_get_width(dialog_image)),
                                            uncommon_dialog.scale * (uncommon_dialog.height / vita2d_texture_get_height(dialog_image)),
                                            0.0f, vita2d_texture_get_width(dialog_image) / 2.0f, vita2d_texture_get_height(dialog_image) / 2.0f);
+#endif
 
   // Easing out
   if (uncommon_dialog.dialog_status == UNCOMMON_DIALOG_CLOSING) {
