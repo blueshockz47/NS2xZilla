@@ -147,14 +147,14 @@ void switch2CtrlExit(void) {
   }
 }
 
-static int finger_active, tap_pending, finger_moved;
+static int finger_active, tap_pending, finger_moved, gesture_kind;
 static SDL_FingerID finger_id;
 static float finger_x, finger_y, tap_x, tap_y;
 static Uint32 finger_time;
 int switch2TakeTap(float *x, float *y) {
   if (!tap_pending) return 0;
   tap_pending = 0;
-  *x = tap_x; *y = tap_y; return 1;
+  *x = tap_x; *y = tap_y; return gesture_kind;
 }
 void switch2PumpEvents(void) {
   SDL_Event event;
@@ -170,14 +170,17 @@ void switch2PumpEvents(void) {
       case SDL_FINGERUP:
         if (finger_active && finger_id == event.tfinger.fingerId) {
           finger_active = 0;
-          if (!finger_moved && SDL_GetTicks()-finger_time < 450 && fabsf(event.tfinger.x-finger_x) <= 0.015f && fabsf(event.tfinger.y-finger_y) <= 0.025f) {
+          if (finger_moved || (fabsf(event.tfinger.x-finger_x) <= 0.015f && fabsf(event.tfinger.y-finger_y) <= 0.025f)) {
             SDL_Renderer *r = vita2dRenderer();
             int w=0,h=0;
             if (r && SDL_GetRendererOutputSize(r,&w,&h)==0 && w>0 && h>0) {
               float scale=fminf((float)w/VITA2D_LOGICAL_WIDTH,(float)h/VITA2D_LOGICAL_HEIGHT);
               tap_x=(event.tfinger.x*w-(w-VITA2D_LOGICAL_WIDTH*scale)/2)/scale;
               tap_y=(event.tfinger.y*h-(h-VITA2D_LOGICAL_HEIGHT*scale)/2)/scale;
-              tap_pending=1;
+              gesture_kind=0;
+              if(!finger_moved) gesture_kind=SDL_GetTicks()-finger_time>=500?2:1;
+              else if(fabsf(event.tfinger.y-finger_y)>0.06f && fabsf(event.tfinger.y-finger_y)>fabsf(event.tfinger.x-finger_x)) gesture_kind=event.tfinger.y<finger_y?3:4;
+              tap_pending=gesture_kind!=0;
             }
           }
         }
