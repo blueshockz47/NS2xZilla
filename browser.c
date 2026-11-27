@@ -71,7 +71,10 @@ static int base_pos_list[MAX_DIR_LEVELS];
 static int rel_pos_list[MAX_DIR_LEVELS];
 static int dir_level = 0;
 #ifdef __SWITCH2__
-static int grid_view;
+static int grid_view, touch_select, search_pending;
+static uint64_t last_tap_time;
+static int last_tap_pos=-1;
+static char search_query[128];
 #define GRID_COLS 5
 #define GRID_COUNT 15
 #define GRID_W 184.0f
@@ -1000,11 +1003,26 @@ int browserMain() {
     int refresh = REFRESH_MODE_NONE;
 #ifdef __SWITCH2__
     float tx, ty;
-    if (switch2TakeTap(&tx,&ty) && browserHasFocus()) {
+    int gesture=switch2TakeTap(&tx,&ty);
+    if (!browserHasFocus() || isImeDialogRunning()) { gesture=0; last_tap_pos=-1; }
+    if(search_pending) {
+      int result=updateImeDialog();
+      if(result==IME_DIALOG_RESULT_FINISHED) {
+        snprintf(search_query,sizeof(search_query),"%s",(char*)getImeDialogInputTextUTF8());
+        if(search_query[0]) { FileListEntry *e=fileListGetNthEntry(&file_list,0); for(;e;e=e->next) if(strcasestr(e->name,search_query)) { setFocusOnFilename(e->name); break; } }
+      }
+      if(result!=IME_DIALOG_RESULT_RUNNING) search_pending=0;
+      gesture=0;
+    }
+    if (gesture && browserHasFocus()) {
+      if(gesture>=3) { int pos=base_pos+rel_pos+(gesture==3?1:-1)*(grid_view?GRID_COLS:4); if(grid_view) gridFocus(pos); else if(file_list.length>0) { pos=MAX(0,MIN(pos,file_list.length-1)); base_pos=MAX(0,MIN(pos,MAX(0,file_list.length-MAX_ENTRIES))); rel_pos=pos-base_pos; } last_tap_pos=-1; }
+      else if(gesture==1 && ty>=START_Y-FONT_Y_SPACE && ty<START_Y && tx>=SCREEN_WIDTH-360 && tx<SCREEN_WIDTH-255) { search_pending=initImeDialog("Find file", "", 30, 0, 0, 0)>=0; last_tap_pos=-1; }
+      else if(gesture==1 && ty>=START_Y-FONT_Y_SPACE && ty<START_Y && tx>=SCREEN_WIDTH-255 && tx<SCREEN_WIDTH-160) { touch_select=!touch_select; last_tap_pos=-1; }
+      else
       if(tx>=SCREEN_WIDTH-160 && tx<SCREEN_WIDTH-SHELL_MARGIN_X && ty>=START_Y-FONT_Y_SPACE && ty<START_Y) { grid_view=!grid_view; if(grid_view) gridFocus(base_pos+rel_pos); }
       else if(tx>=SHELL_MARGIN_X && tx<SCREEN_WIDTH-SHELL_MARGIN_X && ty>=START_Y) {
         int row=grid_view ? (int)((ty-START_Y)/GRID_H)*GRID_COLS+(int)((tx-SHELL_MARGIN_X)/GRID_W) : (int)((ty-START_Y)/FONT_Y_SPACE);
-        if(row>=0 && row<(grid_view?GRID_COUNT:MAX_POSITION) && base_pos+row<file_list.length) { rel_pos=row; scroll_count=0; scroll_x=FILE_X; }
+        if(row>=0 && row<(grid_view?GRID_COUNT:MAX_ENTRIES) && base_pos+row<file_list.length) { rel_pos=row; scroll_count=0; scroll_x=FILE_X; int pos=base_pos+row; uint64_t now=sceKernelGetProcessTimeWide(); if(gesture==2) { pressed_pad[PAD_TRIANGLE]=1; last_tap_pos=-1; } else if(touch_select) { pressed_pad[PAD_SQUARE]=1; last_tap_pos=-1; } else if(last_tap_pos==pos && now-last_tap_time<350000) { pressed_pad[PAD_ENTER]=1; last_tap_pos=-1; } else { last_tap_pos=pos; last_tap_time=now; } }
       }
     }
 #endif
@@ -1025,6 +1043,9 @@ int browserMain() {
     } else if (getContextMenuMode() != CONTEXT_MENU_CLOSED) {
       contextMenuCtrl();
     } else {
+#ifdef __SWITCH2__
+      if(!search_pending)
+#endif
       refresh = fileBrowserMenuCtrl();
     }
 
@@ -1079,6 +1100,10 @@ int browserMain() {
     }
 #endif
  #ifdef __SWITCH2__
+    vita2d_draw_rectangle(SCREEN_WIDTH-360,START_Y-FONT_Y_SPACE,100,FONT_Y_SPACE,0xFF39332D);
+    pgf_draw_text(SCREEN_WIDTH-353,START_Y-FONT_Y_SPACE,FOCUS_COLOR,"Find");
+    vita2d_draw_rectangle(SCREEN_WIDTH-255,START_Y-FONT_Y_SPACE,90,FONT_Y_SPACE,0xFF39332D);
+    pgf_draw_text(SCREEN_WIDTH-250,START_Y-FONT_Y_SPACE,FOCUS_COLOR,touch_select?"Done":"Select");
     vita2d_draw_rectangle(SCREEN_WIDTH-155,START_Y-FONT_Y_SPACE,135,FONT_Y_SPACE,0xFF39332D);
     pgf_draw_text(SCREEN_WIDTH-148,START_Y-FONT_Y_SPACE,FOCUS_COLOR,grid_view?"Grid / List":"List / Grid");
 #endif
