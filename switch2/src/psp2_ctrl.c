@@ -84,6 +84,8 @@ static const ButtonMapping button_mappings[] = {
 
 static SDL_Joystick *joysticks[MAX_JOYSTICKS];
 static int quit_requested = 0;
+static int root_pending,previous_root;
+int switch2TakeRoot(void){int v=root_pending;root_pending=0;return v;}
 static int rotation_delta=0,previous_triggers=0;
 static int view_toggle=0,previous_plus=0,xy_pending=0,previous_xy=0;
 int switch2TakeFileAction(void){int v=xy_pending;xy_pending=0;return v;}
@@ -149,7 +151,8 @@ void switch2CtrlExit(void) {
 
 static int finger_active, tap_pending, finger_moved, gesture_kind;
 static SDL_FingerID finger_id;
-static float finger_x, finger_y, tap_x, tap_y;
+static float finger_x, finger_y, tap_x, tap_y,live_x,live_y;
+int switch2TouchState(float *sx,float *sy,float *x,float *y,int *moved){if(!finger_active)return 0;*moved=finger_moved;return switch2MapTouch(finger_x,finger_y,sx,sy)&&switch2MapTouch(live_x,live_y,x,y);}
 static Uint32 finger_time;
 int switch2TakeTap(float *x, float *y) {
   if (!tap_pending) return 0;
@@ -162,10 +165,11 @@ void switch2PumpEvents(void) {
   while (SDL_PollEvent(&event)) {
     switch (event.type) {
       case SDL_FINGERDOWN:
-        if (!finger_active) { finger_active = 1; finger_moved = 0; finger_id = event.tfinger.fingerId; finger_x = event.tfinger.x; finger_y = event.tfinger.y; finger_time = SDL_GetTicks(); }
+        if (!finger_active) { finger_active = 1; finger_moved = 0; finger_id = event.tfinger.fingerId; finger_x = event.tfinger.x; finger_y = event.tfinger.y; finger_time = SDL_GetTicks();live_x=finger_x;live_y=finger_y; }
         else finger_moved = 1;
         break;
       case SDL_FINGERMOTION:
+        if(finger_active&&finger_id==event.tfinger.fingerId){live_x=event.tfinger.x;live_y=event.tfinger.y;}
         if (finger_active && finger_id == event.tfinger.fingerId && (fabsf(event.tfinger.x-finger_x) > 0.015f || fabsf(event.tfinger.y-finger_y) > 0.025f)) finger_moved = 1;
         break;
       case SDL_FINGERUP:
@@ -252,12 +256,13 @@ int sceCtrlPeekBufferPositive(int port, SceCtrlData *pad_data, int count) {
     return 1;
   }
 
-  int i,triggers=0,plus=0,xy=0;
+  int i,triggers=0,plus=0,xy=0,root=0;
   for (i = 0; i < MAX_JOYSTICKS; i++) {
     if (!joysticks[i])
       continue;
 
     int buttons = SDL_JoystickNumButtons(joysticks[i]);
+    if(buttons>SWITCH_BUTTON_LSTICK&&SDL_JoystickGetButton(joysticks[i],SWITCH_BUTTON_LSTICK))root=1;
     if(buttons>SWITCH_BUTTON_ZL && SDL_JoystickGetButton(joysticks[i],SWITCH_BUTTON_ZL)) triggers|=1;
     if(buttons>SWITCH_BUTTON_ZR && SDL_JoystickGetButton(joysticks[i],SWITCH_BUTTON_ZR)) triggers|=2;
     if(buttons>SWITCH_BUTTON_PLUS&&SDL_JoystickGetButton(joysticks[i],SWITCH_BUTTON_PLUS)) plus=1;
@@ -271,6 +276,7 @@ int sceCtrlPeekBufferPositive(int port, SceCtrlData *pad_data, int count) {
     }
   }
 
+  root_pending|=root&&!previous_root;previous_root=root;
   xy_pending|=xy&~previous_xy;previous_xy=xy;
   if(plus&&!previous_plus)view_toggle=1;previous_plus=plus;
   int edge=triggers&~previous_triggers; previous_triggers=triggers; rotation_delta=edge==1?-1:edge==2?1:0;
