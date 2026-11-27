@@ -49,50 +49,67 @@ extern int switch2Portrait(void);
 
 static int custom_ime,custom_result,custom_max,custom_page,custom_focus;
 static char custom_title[128],custom_text[SCE_IME_DIALOG_MAX_TEXT_LENGTH+1];
-static const char *key_pages[]={"1234567890qwertyuiopasdfghjkl-zxcvbnm_.,","1234567890QWERTYUIOPASDFGHJKL-ZXCVBNM_.,","1234567890!@#$%^&*()[]{}+=~;:-_.,'?`<>|"};
+extern unsigned int switch2ThemeColor(int);
+extern int switch2ThemeIndex(void);
+static const char *key_pages[]={"qwertyuiopasdfghjklzxcvbnm","QWERTYUIOPASDFGHJKLZXCVBNM","1234567890@#$%&-+()!?.,_/"};
 static void customKey(int k){
-  size_t n=strlen(custom_text);
-  if(k<40){const char *p=key_pages[custom_page];if(k<(int)strlen(p)&&n<(size_t)custom_max){custom_text[n]=p[k];custom_text[n+1]=0;}}
-  else if(k==40)custom_page=(custom_page+1)%3;
-  else if(k==41&&n<(size_t)custom_max){custom_text[n]=' ';custom_text[n+1]=0;}
-  else if(k==42&&n){do{n--;}while(n&&((unsigned char)custom_text[n]&0xc0)==0x80);custom_text[n]=0;}
-  else if(k==43)custom_text[0]=0;
-  else if(k==44)custom_result=IME_DIALOG_RESULT_CANCELED;
-  else if(k==45)custom_result=IME_DIALOG_RESULT_FINISHED;
+ size_t n=strlen(custom_text);
+ if(k<26){const char *p=key_pages[custom_page];if(k<(int)strlen(p)&&n<(size_t)custom_max){custom_text[n]=p[k];custom_text[n+1]=0;if(custom_page==1)custom_page=0;}}
+ else if(k==26)custom_page=custom_page==1?0:1;
+ else if(k==27&&n){do{n--;}while(n&&((unsigned char)custom_text[n]&0xc0)==0x80);custom_text[n]=0;}
+ else if(k==28)custom_page=custom_page==2?0:2;
+ else if(k==29&&n<(size_t)custom_max){custom_text[n]=' ';custom_text[n+1]=0;}
+ else if(k==30)custom_result=IME_DIALOG_RESULT_FINISHED;
+ else if(k==31)custom_result=IME_DIALOG_RESULT_CANCELED;
+ else if(k==32)custom_text[0]=0;
 }
 static float keyboardY(void){return SCREEN_HEIGHT-480;}
+static void keyRect(int k,float *x,float *y,float *w,float *h){
+ float u=(SCREEN_WIDTH-20)/10.0f,t=keyboardY();*h=68;
+ if(k<10){*x=10+k*u;*y=t+110;*w=u;}
+ else if(k<19){*x=10+(k-10+.5f)*u;*y=t+184;*w=u;}
+ else if(k<26){*x=10+(k-19+1.5f)*u;*y=t+258;*w=u;}
+ else if(k==26||k==27){*x=10+(k==26?0:8.5f)*u;*y=t+258;*w=1.5f*u;}
+ else if(k<=30){*x=10+(k==28?0:k==29?2:8)*u;*y=t+332;*w=(k==29?6:2)*u;}
+ else {*x=10+(k==31?0:7)*u;*y=t+410;*w=3*u;*h=50;}
+}
+static void keyRound(float x,float y,float w,float h,unsigned int color){
+ for(int i=0;i<(int)h;i++){int d=i<8?8-i:i>h-9?i-(int)h+9:0;int inset=d?d*d/16:0;vita2d_draw_rectangle(x+inset,y+i,w-2*inset,1,color);}
+}
 void switch2KeyboardInput(int gesture,float x,float y){
-  if(!custom_ime||custom_result)return;
-  float top=keyboardY(),w=(SCREEN_WIDTH-20)/10.0f;
-  if(gesture==1&&x>=10&&x<SCREEN_WIDTH-10&&y>=top+110&&y<top+382){int k=(int)((y-top-95)/68)*10+(int)((x-10)/w);custom_focus=k;customKey(k);}
-  else if(gesture==1&&x>=10&&x<SCREEN_WIDTH-10&&y>=top+287&&y<top+460){int k=40+(int)((x-10)/((SCREEN_WIDTH-20)/6.0f));custom_focus=k;customKey(k);}
-  if(pressed_pad[PAD_LEFT])custom_focus=(custom_focus+45)%46;
-  if(pressed_pad[PAD_RIGHT])custom_focus=(custom_focus+1)%46;
-  if(pressed_pad[PAD_UP])custom_focus=custom_focus>=10?custom_focus-10:custom_focus;
-  if(pressed_pad[PAD_DOWN])custom_focus=MIN(45,custom_focus+10);
-  if(pressed_pad[PAD_ENTER])customKey(custom_focus);
-  if(pressed_pad[PAD_CANCEL])custom_result=IME_DIALOG_RESULT_CANCELED;
+ if(!custom_ime||custom_result)return;
+ if(gesture==1){for(int k=0;k<33;k++){float a,b,w,h;keyRect(k,&a,&b,&w,&h);if(x>=a&&x<a+w&&y>=b&&y<b+h){custom_focus=k;customKey(k);return;}}}
+ if(pressed_pad[PAD_LEFT])custom_focus=(custom_focus+32)%33;
+ if(pressed_pad[PAD_RIGHT])custom_focus=(custom_focus+1)%33;
+ if(pressed_pad[PAD_UP]||pressed_pad[PAD_DOWN]){
+ float a,b,w,h;keyRect(custom_focus,&a,&b,&w,&h);float best=1e9;int target=custom_focus;
+ for(int k=0;k<33;k++){float x0,y0,w0,h0;keyRect(k,&x0,&y0,&w0,&h0);float dy=y0-b;if((pressed_pad[PAD_UP]&&dy>=0)||(pressed_pad[PAD_DOWN]&&dy<=0))continue;float dx=x0+w0/2-a-w/2;float score=dy*dy+dx*dx;if(score<best){best=score;target=k;}}custom_focus=target;
+ }
+ if(pressed_pad[PAD_ENTER])customKey(custom_focus);
+ if(pressed_pad[PAD_CANCEL])custom_result=IME_DIALOG_RESULT_CANCELED;
 }
 int switch2KeyboardActive(void){return custom_ime;}
 void switch2DrawKeyboard(void){
-  if(!custom_ime)return;
-  float top=keyboardY(),w=(SCREEN_WIDTH-20)/10.0f;
-  vita2d_draw_rectangle(0,0,SCREEN_WIDTH,SCREEN_HEIGHT,0x99000000);
-  vita2d_draw_rectangle(0,top,SCREEN_WIDTH,480,BACKGROUND_COLOR);
-  pgf_draw_text(12,top+8,FOLDER_COLOR,custom_title);
-  vita2d_draw_rectangle(10,top+38,SCREEN_WIDTH-20,60,CONTROL_HINTS_BAR_COLOR);
-  vita2d_enable_clipping();vita2d_set_clip_rectangle(14,top+38,SCREEN_WIDTH-14,top+98);
-  pgf_draw_text(16,top+55,0xffffffff,custom_text);vita2d_disable_clipping();
-  const char *p=key_pages[custom_page];
-  for(int k=0;k<46;k++){
-    float kw=k<40?w:(SCREEN_WIDTH-20)/6.0f;
-    float x=10+(k<40?k%10:k-40)*kw,y=top+(k<40?110+k/10*68:382);
-    char ch[2]={k<40&&k<(int)strlen(p)?p[k]:' ',0};
-    const char *actions[]={"Mode","Space","Del","Clear","Cancel","OK"};
-    const char *label=k<40?ch:actions[k-40];
-    vita2d_draw_rectangle(x+2,y+2,kw-4,k<40?64:72,k==44?0xff4040dc:k==45?0xff45a622:k==custom_focus?FOLDER_COLOR:CONTROL_HINTS_BAR_COLOR);
-    pgf_draw_text(x+(kw-pgf_text_width(label))/2,y+20,0xffffffff,label);
-  }
+ if(!custom_ime)return;
+ float top=keyboardY();unsigned int accent=switch2ThemeColor(switch2ThemeIndex());
+ vita2d_draw_rectangle(0,0,SCREEN_WIDTH,SCREEN_HEIGHT,0x99000000);
+ vita2d_draw_rectangle(0,top,SCREEN_WIDTH,480,0xff201e1c);
+ pgf_draw_text(12,top+8,accent,custom_title);
+ keyRound(10,top+38,SCREEN_WIDTH-20,60,0xff383532);
+ vita2d_enable_clipping();vita2d_set_clip_rectangle(14,top+38,SCREEN_WIDTH-14,top+98);
+ const char *shown=custom_text;while(*shown&&pgf_text_width(shown)>SCREEN_WIDTH-32){shown++;while(((unsigned char)*shown&0xc0)==0x80)shown++;}
+ pgf_draw_text(16,top+55,0xffffffff,shown);vita2d_disable_clipping();
+ const char *p=key_pages[custom_page];
+ for(int k=0;k<33;k++){
+ float x,y,w,h;keyRect(k,&x,&y,&w,&h);
+ char ch[2]={k<26&&k<(int)strlen(p)?p[k]:' ',0};
+ const char *actions[]={"Shift","Del",custom_page==2?"ABC":"123","space",strstr(custom_title,"Search")?"Search":"OK","Cancel","Clear all"};
+ const char *label=k<26?ch:actions[k-26];
+ unsigned int color=k==30?0xff45a622:k==31?0xff4040dc:k>=26?0xff55514d:0xff44413e;
+ if(k==custom_focus)keyRound(x+2,y+2,w-4,h-4,accent);
+ keyRound(x+4,y+4,w-8,h-8,color);
+ pgf_draw_text(x+(w-pgf_text_width(label))/2,y+(h-23)/2,0xffffffff,label);
+ }
 }
 
 static const char *ime_initial_text = NULL;
