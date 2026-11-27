@@ -26,7 +26,7 @@ OUT := build/switch2
 NAME := NS2xZilla
 TITLE := NS2xZilla
 AUTHOR := blueshockz47 (TheFloW, kurumuz)
-VERSION := 1.0.0-RC28
+VERSION := 1.0.0-RC29
 # The homebrew menu's icon, a 256x256 JPEG.
 ICON := switch2/resources/icon.jpg
 
