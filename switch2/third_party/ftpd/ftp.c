@@ -535,14 +535,22 @@ ftp_closesocket(int  fd,
     pollinfo.fd      = fd;
     pollinfo.events  = POLLIN;
     pollinfo.revents = 0;
+#ifdef __SWITCH2__
+    rc = poll(&pollinfo, 1, 0);
+#else
     rc = poll(&pollinfo, 1, 250);
+#endif
     if(rc < 0)
       console_print(RED "poll: %d %s\n" RESET, errno, strerror(errno));
   }
 
-  /* set linger to 0 */
+  /* Normal TCP close on Switch 2: do not discard queued payload with RST. */
   struct linger linger;
-  linger.l_onoff  = 1;
+#ifdef __SWITCH2__
+  linger.l_onoff = 0;
+#else
+  linger.l_onoff = 1;
+#endif
   linger.l_linger = 0;
   rc = setsockopt(fd, SOL_SOCKET, SO_LINGER,
                   &linger, sizeof(linger));
@@ -1609,7 +1617,7 @@ ftp_session_read_command(ftp_session_t *session,
     {
       /* discard in-band data */
       rc = recv(session->cmd_fd, session->cmd_buffer, sizeof(session->cmd_buffer), 0);
-      if(rc < 0 && errno != EWOULDBLOCK)
+      if(rc < 0 && errno != EWOULDBLOCK && errno != EAGAIN && errno != EINTR)
       {
         console_print(RED "recv: %d %s\n" RESET, errno, strerror(errno));
         ftp_session_close_cmd(session);
@@ -1623,7 +1631,7 @@ ftp_session_read_command(ftp_session_t *session,
     if(rc < 0)
     {
       /* EWOULDBLOCK means out-of-band data is on the way */
-      if(errno == EWOULDBLOCK)
+      if(errno == EWOULDBLOCK || errno == EAGAIN || errno == EINTR)
         return;
 
       /* error retrieving out-of-band data */
@@ -1652,6 +1660,7 @@ ftp_session_read_command(ftp_session_t *session,
   rc = recv(session->cmd_fd, buffer, len, 0);
   if(rc < 0)
   {
+    if(errno == EWOULDBLOCK || errno == EAGAIN || errno == EINTR) return;
     /* error retrieving command */
     console_print(RED "recv: %d %s\n" RESET, errno, strerror(errno));
     ftp_session_close_cmd(session);
@@ -1858,6 +1867,7 @@ ftp_session_poll(ftp_session_t *session)
   rc = poll(pollinfo, nfds, 0);
   if(rc < 0)
   {
+    if(errno == EINTR) return session->next;
     console_print(RED "poll: %d %s\n" RESET, errno, strerror(errno));
     ftp_session_close_cmd(session);
   }
@@ -1881,7 +1891,8 @@ ftp_session_poll(ftp_session_t *session)
     }
 
     /* check the data/pasv socket */
-    if(session->cmd_fd >= 0 && nfds > 1 && pollinfo[1].revents != 0)
+    /* A command may replace or close the data socket; repoll next turn. */
+    if(session->cmd_fd >= 0 && pollinfo[0].revents == 0 && nfds > 1 && pollinfo[1].revents != 0)
     {
       switch(session->state)
       {
@@ -1906,6 +1917,12 @@ ftp_session_poll(ftp_session_t *session)
           }
           else if(pollinfo[1].revents & POLLOUT)
           {
+            int error=0; socklen_t error_len=sizeof(error);
+            if(getsockopt(session->data_fd,SOL_SOCKET,SO_ERROR,&error,&error_len)!=0 || error!=0) {
+              ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
+              ftp_send_response(session,425,"Data connection failed\r\n");
+              break;
+            }
 
             console_print(CYAN "connected to %s:%u\n" RESET,
                           inet_ntoa(session->peer_addr.sin_addr),
