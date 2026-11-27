@@ -41,6 +41,8 @@ extern "C" {
 /* Processes pending SDL events: controller hot-plug and the system's exit
    request. sceCtrlPeekBufferPositive calls this once per frame. */
 void switch2PumpEvents(void);
+/* Consume a single completed tap in logical browser coordinates. */
+int switch2TakeTap(float *x, float *y);
 
 /* Nonzero once HOME's "close software" (SDL_QUIT) has been received or
    switch2RequestExit was called. While set, the controller reports a
