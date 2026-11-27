@@ -175,12 +175,12 @@ void switch2PumpEvents(void) {
             SDL_Renderer *r = vita2dRenderer();
             int w=0,h=0;
             if (r && SDL_GetRendererOutputSize(r,&w,&h)==0 && w>0 && h>0) {
-              float scale=fminf((float)w/VITA2D_LOGICAL_WIDTH,(float)h/VITA2D_LOGICAL_HEIGHT);
-              tap_x=(event.tfinger.x*w-(w-VITA2D_LOGICAL_WIDTH*scale)/2)/scale;
-              tap_y=(event.tfinger.y*h-(h-VITA2D_LOGICAL_HEIGHT*scale)/2)/scale;
+              float sx,sy;
+              int inside=switch2MapTouch(event.tfinger.x,event.tfinger.y,&tap_x,&tap_y);
+              switch2MapTouch(finger_x,finger_y,&sx,&sy);
               gesture_kind=0;
-              if(!finger_moved) gesture_kind=SDL_GetTicks()-finger_time>=500?2:1;
-              else if(fabsf(event.tfinger.y-finger_y)>0.06f && fabsf(event.tfinger.y-finger_y)>fabsf(event.tfinger.x-finger_x)) gesture_kind=event.tfinger.y<finger_y?3:4;
+              if(inside&&!finger_moved) gesture_kind=SDL_GetTicks()-finger_time>=500?2:1;
+              else if(inside&&fabsf(tap_y-sy)>32&&fabsf(tap_y-sy)>fabsf(tap_x-sx)) gesture_kind=tap_y<sy?3:4;
               tap_pending=gesture_kind!=0;
             }
           }
@@ -270,6 +270,17 @@ int sceCtrlPeekBufferPositive(int port, SceCtrlData *pad_data, int count) {
   pad_data->ly = axisToVita(strongestAxis(1));
   pad_data->rx = axisToVita(strongestAxis(2));
   pad_data->ry = axisToVita(strongestAxis(3));
+  int o=switch2EffectiveOrientation();
+  for(int j=0;j<o;j++) {
+    unsigned char x=pad_data->lx,y=pad_data->ly;
+    pad_data->lx=y; pad_data->ly=255-x;
+    unsigned int b=pad_data->buttons;
+    pad_data->buttons &= ~(SCE_CTRL_UP|SCE_CTRL_DOWN|SCE_CTRL_LEFT|SCE_CTRL_RIGHT);
+    if(b&SCE_CTRL_UP) pad_data->buttons|=SCE_CTRL_LEFT;
+    if(b&SCE_CTRL_RIGHT) pad_data->buttons|=SCE_CTRL_UP;
+    if(b&SCE_CTRL_DOWN) pad_data->buttons|=SCE_CTRL_RIGHT;
+    if(b&SCE_CTRL_LEFT) pad_data->buttons|=SCE_CTRL_DOWN;
+  }
 
   return 1;
 }
