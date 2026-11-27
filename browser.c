@@ -77,6 +77,13 @@ static int last_tap_pos=-1;
 static char search_query[128];
 static char last_tap_path[MAX_PATH_LENGTH];
 static int search_found;
+static int palette;
+static const unsigned int accents[]={0xFFFFB849,0xFFFF7AB7,0xFFA2E635,0xFF489AFF};
+static const unsigned int backgrounds[]={0xFF251910,0xFF231319,0xFF1C200E,0xFF131825};
+static const unsigned int panels[]={0xFF3D2A1B,0xFF3F2130,0xFF2F3819,0xFF1D2740};
+#define THEME_PREF VITASHELL_DATA_PATH "internal/palette.txt"
+static void applyPalette(void) { BACKGROUND_COLOR=backgrounds[palette]; CONTROL_HINTS_BAR_COLOR=panels[palette]; FOLDER_COLOR=accents[palette]; SCROLL_BAR_COLOR=accents[palette]; CONTEXT_MENU_FOCUS_COLOR=accents[palette]; SETTINGS_MENU_OPTION_COLOR=accents[palette]; MARKED_COLOR=(accents[palette]&0xffffff)|0x50000000; }
+static void nextPalette(void) { palette=(palette+1)%4; applyPalette(); char v='0'+palette; WriteFile(THEME_PREF,&v,1); }
 #define VIEW_PREF VITASHELL_DATA_PATH "internal/view.txt"
 static void saveView(void) { char v=grid_view?'1':'0'; WriteFile(VIEW_PREF,&v,1); }
 #define GRID_COLS 5
@@ -539,6 +546,7 @@ static int fileBrowserMenuCtrl() {
 
   // Short cuts combo
 #ifdef __SWITCH2__
+  if(pressed_pad[PAD_LTRIGGER] || pressed_pad[PAD_RTRIGGER]) { grid_view=pressed_pad[PAD_RTRIGGER]!=0; if(grid_view) gridFocus(base_pos+rel_pos); saveView(); last_tap_pos=-1; }
   if (pressed_pad[PAD_RIGHT_ANALOG_UP]) { grid_view=!grid_view; if(grid_view) gridFocus(base_pos+rel_pos); saveView(); last_tap_pos=-1; }
   if (grid_view) {
     int pos=base_pos+rel_pos;
@@ -546,8 +554,7 @@ static int fileBrowserMenuCtrl() {
     else if(hold_pad[PAD_DOWN] || hold2_pad[PAD_LEFT_ANALOG_DOWN]) gridFocus(pos+GRID_COLS);
     else if(hold_pad[PAD_LEFT] || hold2_pad[PAD_LEFT_ANALOG_LEFT]) gridFocus(pos-1);
     else if(hold_pad[PAD_RIGHT] || hold2_pad[PAD_LEFT_ANALOG_RIGHT]) gridFocus(pos+1);
-    else if(hold_pad[PAD_LTRIGGER]) gridFocus(pos-GRID_COUNT);
-    else if(hold_pad[PAD_RTRIGGER]) gridFocus(pos+GRID_COUNT);
+
   }
   if (!grid_view && current_pad[PAD_LEFT])
 #else
@@ -642,7 +649,13 @@ static int fileBrowserMenuCtrl() {
   }
 
   // Page skip
-  if (hold_pad[PAD_LTRIGGER] || hold_pad[PAD_RTRIGGER]) {
+  if (
+#ifdef __SWITCH2__
+      0
+#else
+      hold_pad[PAD_LTRIGGER] || hold_pad[PAD_RTRIGGER]
+#endif
+  ) {
     int old_pos = base_pos + rel_pos;
 
     if (hold_pad[PAD_LTRIGGER]) { // Skip page up
@@ -901,7 +914,7 @@ static void drawModernIcon(FileListEntry *e, float x, float y, float s) {
   if(e->is_folder) {
     vita2d_draw_rectangle(x+s*.06f,y+s*.12f,s*.38f,s*.22f,0xFFC67B32);
     vita2d_draw_rectangle(x+s*.06f,y+s*.25f,s*.88f,s*.61f,0xFFE6A34C);
-    vita2d_draw_rectangle(x+s*.06f,y+s*.34f,s*.88f,s*.52f,0xFFFFB568);
+    vita2d_draw_rectangle(x+s*.06f,y+s*.34f,s*.88f,s*.52f,accents[palette]);
     vita2d_draw_rectangle(x+s*.09f,y+s*.35f,s*.82f,s*.035f,0xFFFFD6A4);
   } else {
     vita2d_draw_rectangle(x+s*.19f,y+s*.07f,s*.62f,s*.82f,0xFFF0EAE4);
@@ -917,8 +930,8 @@ static void drawGrid(void) {
   FileListEntry *e=fileListGetNthEntry(&file_list,base_pos);
   for(int i=0;e && i<GRID_COUNT;i++,e=e->next) {
     float x=SHELL_MARGIN_X+(i%GRID_COLS)*GRID_W, y=START_Y+(i/GRID_COLS)*GRID_H;
-    if(i==rel_pos) vita2d_draw_rectangle(x+4,y+2,GRID_W-8,GRID_H-6,0x603E79B0);
-    if(touch_select || fileListFindEntry(&mark_list,e->name)) { vita2d_draw_rectangle(x+8,y+6,16,16,0xFF7C7167); vita2d_draw_rectangle(x+10,y+8,12,12,fileListFindEntry(&mark_list,e->name)?0xFFFFB568:0xFF211E1B); }
+    if(i==rel_pos) vita2d_draw_rectangle(x+4,y+2,GRID_W-8,GRID_H-6,((accents[palette]&0xffffff)|0x60000000));
+    if(strcmp(e->name,DIR_UP)!=0 && (touch_select || fileListFindEntry(&mark_list,e->name))) { vita2d_draw_rectangle(x+8,y+6,16,16,0xFF7C7167); vita2d_draw_rectangle(x+10,y+8,12,12,fileListFindEntry(&mark_list,e->name)?accents[palette]:panels[palette]); }
     drawModernIcon(e,x+(GRID_W-72)/2,y+7,72);
     float w=pgf_text_width(e->name);
     vita2d_enable_clipping(); vita2d_set_clip_rectangle(x+8,y+84,x+GRID_W-8,y+110);
@@ -930,37 +943,15 @@ static void drawControlHints(void) {
   // The "Confirm button" setting swaps A and B.
   int a_confirms = enter_button == SCE_SYSTEM_PARAM_ENTER_BUTTON_CIRCLE;
 
-  const ControlHint hints[] = {
-    { a_confirms ? HINT_BUTTON_A : HINT_BUTTON_B, "Open" },
-    { a_confirms ? HINT_BUTTON_B : HINT_BUTTON_A, "Back" },
-    { HINT_BUTTON_X, "Menu" },
-    { HINT_BUTTON_Y, "Mark" },
-    { HINT_BUTTON_L "/" HINT_BUTTON_R, "Page" },
-    { HINT_BUTTON_PLUS, "Settings" },
-    { HINT_BUTTON_MINUS, ftpvita_is_initialized() ? "FTP server (on)" : "FTP server" },
-  };
+  const char *normal[]={a_confirms?"A Open":"B Open",a_confirms?"B Back":"A Back","X Menu","Y Select","+ Settings","- FTP"};
+  const char *select[]={"Copy","Move","Rename","Delete","All","Done"};
+  vita2d_draw_rectangle(0,HINT_BAR_TOP,SCREEN_WIDTH,SCREEN_HEIGHT-HINT_BAR_TOP,panels[palette]);
+  char info[128]; if(ftpvita_is_initialized()) snprintf(info,sizeof(info),"FTP %s %s:%u",ftpvita_is_recovering()?"RECOVERING":"ACTIVE",vita_ip,(unsigned)vita_port); else snprintf(info,sizeof(info),"FTP Offline");
+  pgf_draw_text(SHELL_MARGIN_X,HINT_BAR_TOP,ftpvita_is_initialized()?0xFF83D49A:DATE_TIME_COLOR,info);
+  char count[64]; snprintf(count,sizeof(count),"%d selected",mark_list.length);
+  if(touch_select) pgf_draw_text(SCREEN_WIDTH-SHELL_MARGIN_X-pgf_text_width(count),HINT_BAR_TOP,accents[palette],count);
+  for(int n=0;n<6;n++) { float w=SCREEN_WIDTH/6.0f; const char *label=touch_select?select[n]:normal[n]; unsigned int color=touch_select&&n==3?0xFF6868FF:FOCUS_COLOR; if(touch_select&&n<4&&(!mark_list.length||(n==2&&mark_list.length!=1))) color=DATE_TIME_COLOR; pgf_draw_text(n*w+(w-pgf_text_width(label))/2,HINT_BAR_TOP+29,color,label); }
 
-  // A custom theme's background can paint the Vita's own button legend
-  // here, so draw the hints on a bar of their own.
-  unsigned int bar_color = (unsigned int)CONTROL_HINTS_BAR_COLOR;
-  if ((bar_color >> 24) == 0 && bg_browser_image)
-    bar_color = HINT_BAR_FALLBACK_COLOR;
-  if ((bar_color >> 24) != 0)
-    vita2d_draw_rectangle(0.0f, HINT_BAR_TOP, SCREEN_WIDTH, SCREEN_HEIGHT - HINT_BAR_TOP, bar_color);
-
-  if(ftpvita_is_initialized()) { char info[96]; snprintf(info,sizeof(info),"FTP %s  %s:%u",ftpvita_is_recovering()?"RECOVERING":"ACTIVE",vita_ip,(unsigned)vita_port); pgf_draw_text(SHELL_MARGIN_X,SCREEN_HEIGHT-2*FONT_Y_SPACE-2,0xFF83D49A,info); }
-  // Below the last row of the file list, in the space it leaves free.
-  float y = SCREEN_HEIGHT - SHELL_MARGIN_Y - FONT_Y_SPACE;
-  float x = SHELL_MARGIN_X;
-
-  int i;
-  for (i = 0; i < (int)(sizeof(hints) / sizeof(hints[0])); i++) {
-    pgf_draw_text(x, y, DATE_TIME_COLOR, hints[i].button);
-    x += pgf_text_width(hints[i].button) + HINT_BUTTON_SPACE;
-
-    pgf_draw_text(x, y, PATH_COLOR, hints[i].action);
-    x += pgf_text_width(hints[i].action) + HINT_SPACE;
-  }
 }
 #endif
 
@@ -996,6 +987,7 @@ int browserMain() {
   // Init settings menu
   initSettingsMenu();
 #ifdef __SWITCH2__
+  char theme_pref='0'; ReadFile(THEME_PREF,&theme_pref,1); palette=theme_pref>='0'&&theme_pref<='3'?theme_pref-'0':0; applyPalette();
   char view_pref='0'; ReadFile(VIEW_PREF,&view_pref,1); grid_view=view_pref=='1';
   if(grid_view) gridFocus(base_pos+rel_pos);
 #endif
@@ -1026,7 +1018,9 @@ int browserMain() {
       gesture=0;
     }
     if (gesture && browserHasFocus()) {
-      if(gesture>=3) { int pos=base_pos+rel_pos+(gesture==3?1:-1)*(grid_view?GRID_COLS:4); if(grid_view) gridFocus(pos); else if(file_list.length>0) { pos=MAX(0,MIN(pos,file_list.length-1)); base_pos=MAX(0,MIN(pos,MAX(0,file_list.length-MAX_ENTRIES))); rel_pos=pos-base_pos; } last_tap_pos=-1; }
+      if(gesture==1 && ty>=484 && tx>=0 && tx<SCREEN_WIDTH) { int slot=(int)(tx/(SCREEN_WIDTH/6.0f)); if(touch_select) { if(slot==5) { touch_select=0; fileListEmpty(&mark_list); } else if(slot==4) { fileListEmpty(&mark_list); for(FileListEntry *e=file_list.head;e;e=e->next) if(strcmp(e->name,DIR_UP)!=0 && dir_level>0) fileListAddEntry(&mark_list,fileListCopyEntry(e),SORT_NONE); } else if(mark_list.length>0 && dir_level>0) { setFocusOnFilename(mark_list.head->name); setContextMenuMainVisibilities(); int names[]={COPY,MOVE,RENAME,DELETE}; for(int j=0;j<context_menu_main.n_entries;j++) if(context_menu_main.entries[j].name==names[slot] && context_menu_main.entries[j].visibility==CTX_VISIBLE && (slot!=2 || mark_list.length==1)) { context_menu_main.callback(j,context_menu_main.context); if(slot<2) { touch_select=0; fileListEmpty(&mark_list); } break; } } } else { int keys[]={PAD_ENTER,PAD_CANCEL,PAD_TRIANGLE,PAD_SQUARE,PAD_START,PAD_SELECT}; if(slot==3) touch_select=1; else pressed_pad[keys[slot]]=1; } last_tap_pos=-1; }
+      else if(gesture==1 && ty>=START_Y-FONT_Y_SPACE && ty<START_Y && tx>=SHELL_MARGIN_X && tx<180) { nextPalette(); }
+      else if(gesture>=3) { int pos=base_pos+rel_pos+(gesture==3?1:-1)*(grid_view?GRID_COLS:4); if(grid_view) gridFocus(pos); else if(file_list.length>0) { pos=MAX(0,MIN(pos,file_list.length-1)); base_pos=MAX(0,MIN(pos,MAX(0,file_list.length-MAX_ENTRIES))); rel_pos=pos-base_pos; } last_tap_pos=-1; }
       else if(gesture==1 && ty>=START_Y-FONT_Y_SPACE && ty<START_Y && tx>=SCREEN_WIDTH-360 && tx<SCREEN_WIDTH-255) { search_pending=initImeDialog("Find file", "", 30, 0, 0, 0)>=0; last_tap_pos=-1; }
       else if(gesture==1 && ty>=START_Y-FONT_Y_SPACE && ty<START_Y && tx>=SCREEN_WIDTH-255 && tx<SCREEN_WIDTH-160) { touch_select=!touch_select; last_tap_pos=-1; }
       else
@@ -1093,7 +1087,7 @@ int browserMain() {
     drawShellInfo(file_list.path);
 #ifdef __SWITCH2__
     // Toolbar owns the second path line; clip status to its left.
-    vita2d_draw_rectangle(0,START_Y-FONT_Y_SPACE,SCREEN_WIDTH,FONT_Y_SPACE,0xFF211E1B);
+    vita2d_draw_rectangle(0,START_Y-FONT_Y_SPACE,SCREEN_WIDTH,FONT_Y_SPACE,panels[palette]);
     vita2d_enable_clipping(); vita2d_set_clip_rectangle(SHELL_MARGIN_X,START_Y-FONT_Y_SPACE,SCREEN_WIDTH-365,START_Y-6);
     if(search_query[0]) { char result[180]; snprintf(result,sizeof(result),"%s: %s",search_found?"Found":"No match",search_query); pgf_draw_text(SHELL_MARGIN_X,START_Y-FONT_Y_SPACE,DATE_TIME_COLOR,result); } else
     if (pgf_text_width(file_list.path) < MAX_WIDTH && strlen(file_list.path) < 255) {
@@ -1112,13 +1106,15 @@ int browserMain() {
       }
     }
     vita2d_disable_clipping();
+    vita2d_draw_rectangle(SHELL_MARGIN_X,START_Y-FONT_Y_SPACE,155,FONT_Y_SPACE,panels[palette]);
+    const char *theme_names[]={"Ocean Blue","Purple","Emerald","Sunset"}; pgf_draw_text(SHELL_MARGIN_X+3,START_Y-FONT_Y_SPACE,accents[palette],theme_names[palette]);
 #endif
  #ifdef __SWITCH2__
-    vita2d_draw_rectangle(SCREEN_WIDTH-360,START_Y-FONT_Y_SPACE,100,FONT_Y_SPACE,0xFF39332D);
+    vita2d_draw_rectangle(SCREEN_WIDTH-360,START_Y-FONT_Y_SPACE,100,FONT_Y_SPACE,panels[palette]);
     pgf_draw_text(SCREEN_WIDTH-353,START_Y-FONT_Y_SPACE,FOCUS_COLOR,"Find");
-    vita2d_draw_rectangle(SCREEN_WIDTH-255,START_Y-FONT_Y_SPACE,90,FONT_Y_SPACE,0xFF39332D);
+    vita2d_draw_rectangle(SCREEN_WIDTH-255,START_Y-FONT_Y_SPACE,90,FONT_Y_SPACE,panels[palette]);
     pgf_draw_text(SCREEN_WIDTH-250,START_Y-FONT_Y_SPACE,FOCUS_COLOR,touch_select?"Done":"Select");
-    vita2d_draw_rectangle(SCREEN_WIDTH-155,START_Y-FONT_Y_SPACE,135,FONT_Y_SPACE,0xFF39332D);
+    vita2d_draw_rectangle(SCREEN_WIDTH-155,START_Y-FONT_Y_SPACE,135,FONT_Y_SPACE,panels[palette]);
     pgf_draw_text(SCREEN_WIDTH-148,START_Y-FONT_Y_SPACE,FOCUS_COLOR,grid_view?"Grid / List":"List / Grid");
 #endif
     drawScrollBar(base_pos, file_list.length);
@@ -1196,8 +1192,8 @@ int browserMain() {
 #ifdef __SWITCH2__
         // A subtle full-row focus background, independent of file type.
         if (i == rel_pos) {
-          vita2d_draw_rectangle(SHELL_MARGIN_X - 4.0f, y, MARK_WIDTH + 8.0f, FONT_Y_SPACE, 0x503E79B0);
-          vita2d_draw_rectangle(SHELL_MARGIN_X - 4.0f, y, 3.0f, FONT_Y_SPACE, 0xFFFFB568);
+          vita2d_draw_rectangle(SHELL_MARGIN_X - 4.0f, y, MARK_WIDTH + 8.0f, FONT_Y_SPACE, ((accents[palette]&0xffffff)|0x50000000));
+          vita2d_draw_rectangle(SHELL_MARGIN_X - 4.0f, y, 3.0f, FONT_Y_SPACE, accents[palette]);
         }
 #endif
         // Draw icon
@@ -1216,7 +1212,7 @@ int browserMain() {
           vita2d_draw_rectangle(SHELL_MARGIN_X, y + 3.0f, MARK_WIDTH, FONT_Y_SPACE, MARKED_COLOR);
 
  #ifdef __SWITCH2__
-        if(touch_select) { vita2d_draw_rectangle(SHELL_MARGIN_X,y+5,16,16,0xFF7C7167); vita2d_draw_rectangle(SHELL_MARGIN_X+2,y+7,12,12,fileListFindEntry(&mark_list,file_entry->name)?0xFFFFB568:0xFF211E1B); }
+        if(touch_select && strcmp(file_entry->name,DIR_UP)!=0) { vita2d_draw_rectangle(SHELL_MARGIN_X,y+5,16,16,0xFF7C7167); vita2d_draw_rectangle(SHELL_MARGIN_X+2,y+7,12,12,fileListFindEntry(&mark_list,file_entry->name)?accents[palette]:panels[palette]); }
 #endif
         // Draw file name
         vita2d_enable_clipping();
