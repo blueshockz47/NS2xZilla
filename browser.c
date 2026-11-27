@@ -551,8 +551,8 @@ static int fileBrowserMenuCtrl() {
 
   // Short cuts combo
 #ifdef __SWITCH2__
-  if(pressed_pad[PAD_LTRIGGER] || pressed_pad[PAD_RTRIGGER]) { changeView(pressed_pad[PAD_RTRIGGER]!=0); }
-  if (pressed_pad[PAD_RIGHT_ANALOG_UP]) { changeView(!grid_view); }
+  extern int switch2TakeViewToggle(void);
+  if(switch2TakeViewToggle()) changeView(!grid_view);
   if (grid_view) {
     int pos=base_pos+rel_pos;
     if(hold_pad[PAD_UP] || hold2_pad[PAD_LEFT_ANALOG_UP]) gridFocus(pos-GRID_COLS);
@@ -976,7 +976,7 @@ static void drawControlHints(void) {
   // The "Confirm button" setting swaps A and B.
   int a_confirms = enter_button == SCE_SYSTEM_PARAM_ENTER_BUTTON_CIRCLE;
 
-  const char *normal[]={"- FTP","+ Settings",a_confirms?"B Back":"A Back",a_confirms?"A Open":"B Open","X More","Y Select"};
+  const char *normal[]={"- FTP","R3 Settings",a_confirms?"B Back":"A Back",a_confirms?"A Open":"B Open","R More","L Select"};
   const char *select[]={"Copy","Move","Rename","Delete","All","Done"};
   const char *paste[]={"Open","Back","Paste here","Cancel copy","Settings","FTP"};
   int pasting=!touch_select && copy_list.length>0;
@@ -987,13 +987,13 @@ static void drawControlHints(void) {
   char count[64]; snprintf(count,sizeof(count),"%d selected",mark_list.length);
   if(touch_select) pgf_draw_text(SCREEN_WIDTH-SHELL_MARGIN_X-pgf_text_width(count),HINT_BAR_TOP,accents[palette],count);
   else if(ftpvita_is_initialized()) { unsigned clients; uint64_t up,down; ftpvita_metrics_snapshot(&clients,&up,&down); uint64_t ur,dr; ftpvita_metrics_rates(&ur,&dr); snprintf(count,sizeof(count),"U %.1f D %.1f MiB/s",(double)ur/1048576.0,(double)dr/1048576.0); if(switch2Portrait()) pgf_draw_text(SHELL_MARGIN_X,HINT_BAR_TOP+20,DATE_TIME_COLOR,count); else if(pgf_text_width(info)+pgf_text_width(count)<SCREEN_WIDTH*(touch_select||pasting?1:.75f)-40) pgf_draw_text(SHELL_MARGIN_X+pgf_text_width(info)+16,HINT_BAR_TOP,DATE_TIME_COLOR,count); }
-  for(int n=0;n<6;n++) { float x=toolbarEdge(n),w=switch2Portrait()?SCREEN_WIDTH/3.0f:toolbarEdge(n+1)-x; float rowoff=switch2Portrait()?(n/3)*50.0f:0; int action=(!touch_select&&!pasting&&switch2Portrait())?(n==2?4:n==4?2:n):n; const char *label=touch_select?select[n]:pasting?paste[n]:normal[action]; unsigned int bg=backgrounds[palette], color=0xFFFFFFFF;
+  for(int n=0;n<6;n++) { float x=toolbarEdge(n),w=switch2Portrait()?SCREEN_WIDTH/3.0f:toolbarEdge(n+1)-x; float rowoff=switch2Portrait()?(n/3)*50.0f:0; int action=(!touch_select&&!pasting&&switch2Portrait())?(n==2?5:n==4?2:n==5?4:n):n; const char *label=touch_select?select[n]:pasting?paste[n]:normal[action]; unsigned int bg=backgrounds[palette], color=0xFFFFFFFF;
     if(touch_select) { if(n==0||n==4) bg=0xFF995A23; if(n==1||n==2) { bg=0xFF2CB5E6; color=0xFF202020; } if(n==3) bg=0xFF3434B9; if(n==5) bg=0xFF436932; if(n<4&&(!mark_list.length||(n==2&&mark_list.length!=1))) { bg=backgrounds[palette]; color=0xFFAAAAAA; } }
     else if(!pasting&&n==0&&ftpvita_is_initialized()) bg=0xFF365E30;
-    if(!touch_select&&!pasting&&n==5) bg=shade(accents[palette],48);
-    float by=HINT_BAR_TOP+(switch2Portrait()?54+rowoff:(!touch_select&&!pasting&&n==5?0:34)); float bh=switch2Portrait()?46:(!touch_select&&!pasting&&n==5?70:34);
+    if(!touch_select&&!pasting&&action==5) bg=shade(accents[palette],48);
+    float by=HINT_BAR_TOP+(switch2Portrait()?54+rowoff+(!touch_select&&!pasting&&n==5?24:0):(!touch_select&&!pasting&&n==5?0:34)); float bh=switch2Portrait()?(!touch_select&&!pasting?(n==2?72:n==5?22:46):46):(!touch_select&&!pasting&&n==5?70:34);
     roundedBox(x+5,by,w-10,bh,8,bg);
-    int special=!touch_select&&!pasting&&n==5;
+    int special=!touch_select&&!pasting&&action==5;
     if(special){float sw=(w-20)/3; unsigned int colors[]={0xFFB75D24,0xFF3A3AC7,0xFF35BFEF}; for(int j=0;j<3;j++) roundedBox(x+10+j*sw,by+bh-9,sw,5,2,colors[j]);}
     pgf_draw_text(x+(w-pgf_text_width(label))/2,by+(bh-(special?12:0)-FONT_Y_SPACE)/2,color,label);
   }
@@ -1068,7 +1068,7 @@ int browserMain() {
       gesture=0;
     }
     if (gesture && browserHasFocus()) {
-      if(gesture==1 && ty>=HINT_BAR_TOP+(switch2Portrait()?54:34) || (gesture==1&&!switch2Portrait()&&!touch_select&&!copy_list.length&&ty>=HINT_BAR_TOP&&tx>=toolbarEdge(5)) && tx>=0 && tx<SCREEN_WIDTH) { int slot=0; if(switch2Portrait()) slot=MIN(2,(int)(tx*3/SCREEN_WIDTH))+(ty>=HINT_BAR_TOP+104?3:0); else while(slot<5 && tx>=toolbarEdge(slot+1)) slot++; if(switch2Portrait()&&!touch_select&&!copy_list.length) slot=slot==2?4:slot==4?2:slot; if(touch_select) { if(slot==5) { touch_select=0; fileListEmpty(&mark_list); } else if(slot==4) { fileListEmpty(&mark_list); for(FileListEntry *e=file_list.head;e;e=e->next) if(strcmp(e->name,DIR_UP)!=0 && dir_level>0) fileListAddEntry(&mark_list,fileListCopyEntry(e),SORT_NONE); } else if(mark_list.length>0 && dir_level>0) { setFocusOnFilename(mark_list.head->name); setContextMenuMainVisibilities(); int names[]={COPY,MOVE,RENAME,DELETE}; for(int j=0;j<context_menu_main.n_entries;j++) if(context_menu_main.entries[j].name==names[slot] && context_menu_main.entries[j].visibility==CTX_VISIBLE && (slot!=2 || mark_list.length==1)) { context_menu_main.callback(j,context_menu_main.context); if(slot<2) { touch_select=0; fileListEmpty(&mark_list); } break; } } } else if(copy_list.length>0 && slot==2) { if(dir_level>0 && !isInArchive() && file_list.length>0) { setContextMenuMainVisibilities(); for(int j=0;j<context_menu_main.n_entries;j++) if(context_menu_main.entries[j].name==PASTE && context_menu_main.entries[j].visibility==CTX_VISIBLE) { context_menu_main.callback(j,context_menu_main.context); break; } } } else if(copy_list.length>0 && slot==3) { fileListEmpty(&copy_list); } else { int keys[]={PAD_SELECT,PAD_START,PAD_CANCEL,PAD_ENTER,PAD_TRIANGLE,PAD_SQUARE}; if(copy_list.length>0) { int pk[]={PAD_ENTER,PAD_CANCEL,PAD_ENTER,PAD_CANCEL,PAD_START,PAD_SELECT}; pressed_pad[pk[slot]]=1; } else if(slot==5) touch_select=1; else pressed_pad[keys[slot]]=1; } last_tap_pos=-1; }
+      if(gesture==1 && ty>=HINT_BAR_TOP+(switch2Portrait()?54:34) || (gesture==1&&!switch2Portrait()&&!touch_select&&!copy_list.length&&ty>=HINT_BAR_TOP&&tx>=toolbarEdge(5)) && tx>=0 && tx<SCREEN_WIDTH) { int slot=0; if(switch2Portrait()) slot=MIN(2,(int)(tx*3/SCREEN_WIDTH))+(ty>=HINT_BAR_TOP+104?3:0); else while(slot<5 && tx>=toolbarEdge(slot+1)) slot++; if(switch2Portrait()&&!touch_select&&!copy_list.length) slot=slot==2|| (slot==5&&ty<HINT_BAR_TOP+128)?5:slot==4?2:slot==5?4:slot; if(touch_select) { if(slot==5) { touch_select=0; fileListEmpty(&mark_list); } else if(slot==4) { fileListEmpty(&mark_list); for(FileListEntry *e=file_list.head;e;e=e->next) if(strcmp(e->name,DIR_UP)!=0 && dir_level>0) fileListAddEntry(&mark_list,fileListCopyEntry(e),SORT_NONE); } else if(mark_list.length>0 && dir_level>0) { setFocusOnFilename(mark_list.head->name); setContextMenuMainVisibilities(); int names[]={COPY,MOVE,RENAME,DELETE}; for(int j=0;j<context_menu_main.n_entries;j++) if(context_menu_main.entries[j].name==names[slot] && context_menu_main.entries[j].visibility==CTX_VISIBLE && (slot!=2 || mark_list.length==1)) { context_menu_main.callback(j,context_menu_main.context); if(slot<2) { touch_select=0; fileListEmpty(&mark_list); } break; } } } else if(copy_list.length>0 && slot==2) { if(dir_level>0 && !isInArchive() && file_list.length>0) { setContextMenuMainVisibilities(); for(int j=0;j<context_menu_main.n_entries;j++) if(context_menu_main.entries[j].name==PASTE && context_menu_main.entries[j].visibility==CTX_VISIBLE) { context_menu_main.callback(j,context_menu_main.context); break; } } } else if(copy_list.length>0 && slot==3) { fileListEmpty(&copy_list); } else { int keys[]={PAD_SELECT,PAD_START,PAD_CANCEL,PAD_ENTER,PAD_TRIANGLE,PAD_SQUARE}; if(copy_list.length>0) { int pk[]={PAD_ENTER,PAD_CANCEL,PAD_ENTER,PAD_CANCEL,PAD_START,PAD_SELECT}; pressed_pad[pk[slot]]=1; } else if(slot==5) touch_select=1; else pressed_pad[keys[slot]]=1; } last_tap_pos=-1; }
       else if(gesture==1 && ty>=START_Y-FONT_Y_SPACE && ty<START_Y+8 && tx>=SHELL_MARGIN_X && tx<180) { nextPalette(); }
       else if(gesture>=3) { int pos=base_pos+rel_pos+(gesture==3?1:-1)*(grid_view?GRID_COLS:4); if(grid_view) gridFocus(pos); else if(file_list.length>0) { pos=MAX(0,MIN(pos,file_list.length-1)); base_pos=MAX(0,MIN(pos,MAX(0,file_list.length-MAX_ENTRIES))); rel_pos=pos-base_pos; } last_tap_pos=-1; }
       else if(gesture==1 && ty>=START_Y-FONT_Y_SPACE && ty<START_Y+8 && tx>=185 && tx<SCREEN_WIDTH-225) { if(tx>=SCREEN_WIDTH-265) { search_query[0]=0; search_found=0; } else search_pending=initImeDialog("Search files", search_query, 30, 0, 0, 0)>=0; last_tap_pos=-1; }
@@ -1150,8 +1150,8 @@ int browserMain() {
     roundedBox(SCREEN_WIDTH-220,hy,95,FONT_Y_SPACE,4,grid_view?backgrounds[palette]:shade(accents[palette],55));
     roundedBox(SCREEN_WIDTH-120,hy,100,FONT_Y_SPACE,4,grid_view?shade(accents[palette],55):backgrounds[palette]);
 
-    pgf_draw_text(SCREEN_WIDTH-210,hy,FOCUS_COLOR,"L List");
-    pgf_draw_text(SCREEN_WIDTH-110,hy,FOCUS_COLOR,"R Grid");
+    pgf_draw_text(SCREEN_WIDTH-210,hy,FOCUS_COLOR,"+ List");
+    pgf_draw_text(SCREEN_WIDTH-110,hy,FOCUS_COLOR,"+ Grid");
 #endif
     drawScrollBar(base_pos, file_list.length);
 #ifdef __SWITCH2__
