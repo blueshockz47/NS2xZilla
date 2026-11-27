@@ -265,7 +265,7 @@ static void applyClipping(void) {
 
 void vita2d_enable_clipping(void) {
   clipping_enabled = 1;
-  /* The following set_clip_rectangle applies the new bounds. */
+  applyClipping();
 }
 
 void vita2d_disable_clipping(void) {
