@@ -194,6 +194,7 @@ struct ftp_session_t
   size_t   cmd_buffersize;
   uint64_t filepos;                      /*! persistent file position between callbacks */
   uint64_t filesize;                     /*! persistent file size between callbacks */
+  bool     resumed_write;              /*! truncate stale tail only after successful resumed STOR */
   FILE     *fp;                          /*! persistent open file pointer between callbacks */
   DIR      *dp;                          /*! persistent open directory pointer between callbacks */
 };
@@ -630,6 +631,7 @@ ftp_session_close_file(ftp_session_t *session)
   }
 
   session->fp      = NULL;
+  session->resumed_write = false;
   session->filepos = 0;
 }
 
@@ -668,6 +670,7 @@ ftp_session_open_file_read(ftp_session_t *session)
     console_print(RED "fstat '%s': %d %s\n" RESET, session->buffer, errno, strerror(errno));
     return -1;
   }
+  if(st.st_size < 0) { errno = EINVAL; return -1; }
   session->filesize = st.st_size;
   if(session->filepos > session->filesize)
   {
@@ -677,7 +680,8 @@ ftp_session_open_file_read(ftp_session_t *session)
 
   if(session->filepos != 0)
   {
-    rc = fseek(session->fp, session->filepos, SEEK_SET);
+    if((off_t)session->filepos < 0 || (uint64_t)(off_t)session->filepos != session->filepos) { errno = EOVERFLOW; return -1; }
+    rc = fseeko(session->fp, (off_t)session->filepos, SEEK_SET);
     if(rc != 0)
     {
       console_print(RED "fseek '%s': %d %s\n" RESET, session->buffer, errno, strerror(errno));
@@ -728,6 +732,7 @@ ftp_session_open_file_write(ftp_session_t *session,
 {
   int        rc;
   const char *mode = "wb";
+  session->resumed_write = !append && session->filepos != 0;
 
   if(append)
     mode = "ab";
@@ -764,7 +769,8 @@ ftp_session_open_file_write(ftp_session_t *session,
       return -1;
     }
     /* seek to the REST offset */
-    rc = fseek(session->fp, session->filepos, SEEK_SET);
+    if((off_t)session->filepos < 0 || (uint64_t)(off_t)session->filepos != session->filepos) { errno = EOVERFLOW; return -1; }
+    rc = fseeko(session->fp, (off_t)session->filepos, SEEK_SET);
     if(rc != 0)
     {
       console_print(RED "fseek '%s': %d %s\n" RESET, session->buffer, errno, strerror(errno));
@@ -2735,7 +2741,8 @@ retrieve_transfer(ftp_session_t *session)
     rc = ftp_session_read_file(session);
     if(rc <= 0)
     {
-      /* can't read any more data */
+      /* Detect unexpected EOF if the source shrank during retrieval. */
+      if(rc == 0 && session->filepos != session->filesize) rc = -1;
       ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
       if(rc < 0)
         ftp_send_response(session, 451, "Failed to read file\r\n");
@@ -2806,7 +2813,12 @@ store_transfer(ftp_session_t *session)
       int close_error = 0;
       if(rc == 0 && session->fp != NULL)
       {
-        close_error = fclose(session->fp);
+        if(fflush(session->fp) != 0) close_error = -1;
+        if(close_error == 0 && session->resumed_write) {
+          off_t end = (off_t)session->filepos;
+          if(end < 0 || (uint64_t)end != session->filepos || ftruncate(fileno(session->fp),end) != 0) close_error = -1;
+        }
+        if(fclose(session->fp) != 0) close_error = -1;
         session->fp = NULL;
         if(close_error != 0)
           console_print(RED "fclose: %d %s\n" RESET, errno, strerror(errno));
@@ -3887,7 +3899,7 @@ FTP_DECLARE(PORT)
   port = 0;
   for(p = portstr; *p; ++p)
   {
-    if(!isdigit((int)*p))
+    if(!isdigit((unsigned char)*p))
     {
       if(p == portstr || *p != '.' || val > 0xFF)
       {
