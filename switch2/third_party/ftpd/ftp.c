@@ -41,7 +41,9 @@
 #endif
 #include "console.h"
 #ifdef __SWITCH2__
-#include <ftpvita.h>
+/* Metrics declarations avoid Vita compatibility header macros. */
+extern void ftpvita_metrics_client(int delta);
+extern void ftpvita_metrics_bytes(uint64_t bytes, int upload);
 #endif
 
 #define POLL_UNKNOWN    (~(POLLIN|POLLPRI|POLLOUT))
