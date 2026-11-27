@@ -71,5 +71,8 @@ void setContextMenu(ContextMenu *ctx);
 
 void drawContextMenu();
 void contextMenuCtrl();
+#ifdef __SWITCH2__
+void contextMenuTap(float x,float y);
+#endif
 
 #endif
