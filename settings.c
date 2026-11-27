@@ -50,6 +50,7 @@ static int n_settings_entries = 0;
 
 #ifdef __SWITCH2__
 // The Switch's A and B button symbols
+static char *orientation_options[]={"0 Landscape","90 Portrait","180 Landscape","270 Portrait"};
 static char *enter_button_options[] = { "\xEE\x83\xA0", "\xEE\x83\xA1" };
 #else
 static char *usbdevice_options[4];
@@ -62,6 +63,7 @@ static char *theme_name = NULL;
 
 static ConfigEntry settings_entries[] = {
 #ifdef __SWITCH2__
+  { "ORIENTATION", CONFIG_TYPE_DECIMAL, &switch2_orientation },
   { "ENTER_BUTTON",       CONFIG_TYPE_DECIMAL, (int *)&vitashell_config.enter_button },
 #else
   { "USBDEVICE",          CONFIG_TYPE_DECIMAL, (int *)&vitashell_config.usbdevice },
@@ -80,6 +82,7 @@ SettingsMenuOption main_settings[] = {
   { VITASHELL_SETTINGS_THEME,           SETTINGS_OPTION_TYPE_OPTIONS, NULL, NULL, 0, NULL, 0, NULL },
   { VITASHELL_SETTINGS_ENTER_BUTTON,    SETTINGS_OPTION_TYPE_OPTIONS, NULL, NULL, 0,
     enter_button_options, sizeof(enter_button_options) / sizeof(char **), &vitashell_config.enter_button },
+  { VITASHELL_SETTINGS_THEME, SETTINGS_OPTION_TYPE_OPTIONS, NULL,NULL,0,orientation_options,4,&switch2_orientation },
 };
 
 SettingsMenuOption power_settings[] = {
@@ -129,6 +132,7 @@ void loadSettingsConfig() {
 #ifdef __SWITCH2__
   if (vitashell_config.enter_button < 0 || vitashell_config.enter_button > 1)
     vitashell_config.enter_button = 0;
+  if(switch2_orientation<0||switch2_orientation>3) switch2_orientation=0;
   applyEnterButton();
 #endif
 }
@@ -267,9 +271,11 @@ void closeSettingsMenu() {
     saveSettingsConfig();
       
     // Save theme config file
+    if(theme_count>0 && theme>=0 && theme<theme_count) {
     theme_entries[0].value = &theme_options[theme];
     writeConfig(VITASHELL_DATA_PATH "theme/theme.txt", theme_entries, sizeof(theme_entries) / sizeof(ConfigEntry));
     theme_entries[0].value = (void *)&theme_name;
+    }
   }
 }
 
@@ -326,12 +332,12 @@ void drawSettingsMenu() {
 
       if (options[j].type == SETTINGS_OPTION_TYPE_CALLBACK) {
         // Item
-        float x = pgf_text_width(language_container[options[j].name]);
-        pgf_draw_text(ALIGN_CENTER(SCREEN_WIDTH, x), y, SETTINGS_MENU_ITEM_COLOR, language_container[options[j].name]);
+        float x = pgf_text_width((options[j].value==&switch2_orientation?"Screen rotation":language_container[options[j].name]));
+        pgf_draw_text(ALIGN_CENTER(SCREEN_WIDTH, x), y, SETTINGS_MENU_ITEM_COLOR, (options[j].value==&switch2_orientation?"Screen rotation":language_container[options[j].name]));
       } else {
         // Item
-        float x = pgf_text_width(language_container[options[j].name]);
-        pgf_draw_text(ALIGN_RIGHT(SCREEN_HALF_WIDTH - 10.0f, x), y, SETTINGS_MENU_ITEM_COLOR, language_container[options[j].name]);
+        float x = pgf_text_width((options[j].value==&switch2_orientation?"Screen rotation":language_container[options[j].name]));
+        pgf_draw_text(ALIGN_RIGHT(SCREEN_HALF_WIDTH - 10.0f, x), y, SETTINGS_MENU_ITEM_COLOR, (options[j].value==&switch2_orientation?"Screen rotation":language_container[options[j].name]));
 
         // Option
         switch (options[j].type) {
