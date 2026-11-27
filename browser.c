@@ -75,6 +75,10 @@ static int grid_view, touch_select, search_pending;
 static uint64_t last_tap_time;
 static int last_tap_pos=-1;
 static char search_query[128];
+static char last_tap_path[MAX_PATH_LENGTH];
+static int search_found;
+#define VIEW_PREF VITASHELL_DATA_PATH "internal/view.txt"
+static void saveView(void) { char v=grid_view?'1':'0'; WriteFile(VIEW_PREF,&v,1); }
 #define GRID_COLS 5
 #define GRID_COUNT 15
 #define GRID_W 184.0f
@@ -535,7 +539,7 @@ static int fileBrowserMenuCtrl() {
 
   // Short cuts combo
 #ifdef __SWITCH2__
-  if (pressed_pad[PAD_RIGHT_ANALOG_UP]) { grid_view=!grid_view; if(grid_view) gridFocus(base_pos+rel_pos); }
+  if (pressed_pad[PAD_RIGHT_ANALOG_UP]) { grid_view=!grid_view; if(grid_view) gridFocus(base_pos+rel_pos); saveView(); last_tap_pos=-1; }
   if (grid_view) {
     int pos=base_pos+rel_pos;
     if(hold_pad[PAD_UP] || hold2_pad[PAD_LEFT_ANALOG_UP]) gridFocus(pos-GRID_COLS);
@@ -914,7 +918,7 @@ static void drawGrid(void) {
   for(int i=0;e && i<GRID_COUNT;i++,e=e->next) {
     float x=SHELL_MARGIN_X+(i%GRID_COLS)*GRID_W, y=START_Y+(i/GRID_COLS)*GRID_H;
     if(i==rel_pos) vita2d_draw_rectangle(x+4,y+2,GRID_W-8,GRID_H-6,0x603E79B0);
-    if(fileListFindEntry(&mark_list,e->name)) vita2d_draw_rectangle(x+8,y+6,10,10,0xFFFFB568);
+    if(touch_select || fileListFindEntry(&mark_list,e->name)) { vita2d_draw_rectangle(x+8,y+6,16,16,0xFF7C7167); vita2d_draw_rectangle(x+10,y+8,12,12,fileListFindEntry(&mark_list,e->name)?0xFFFFB568:0xFF211E1B); }
     drawModernIcon(e,x+(GRID_W-72)/2,y+7,72);
     float w=pgf_text_width(e->name);
     vita2d_enable_clipping(); vita2d_set_clip_rectangle(x+8,y+84,x+GRID_W-8,y+110);
@@ -944,6 +948,7 @@ static void drawControlHints(void) {
   if ((bar_color >> 24) != 0)
     vita2d_draw_rectangle(0.0f, HINT_BAR_TOP, SCREEN_WIDTH, SCREEN_HEIGHT - HINT_BAR_TOP, bar_color);
 
+  if(ftpvita_is_initialized()) { char info[96]; snprintf(info,sizeof(info),"FTP %s  %s:%u",ftpvita_is_recovering()?"RECOVERING":"ACTIVE",vita_ip,(unsigned)vita_port); pgf_draw_text(SHELL_MARGIN_X,SCREEN_HEIGHT-2*FONT_Y_SPACE-2,0xFF83D49A,info); }
   // Below the last row of the file list, in the space it leaves free.
   float y = SCREEN_HEIGHT - SHELL_MARGIN_Y - FONT_Y_SPACE;
   float x = SHELL_MARGIN_X;
@@ -990,6 +995,10 @@ int browserMain() {
 
   // Init settings menu
   initSettingsMenu();
+#ifdef __SWITCH2__
+  char view_pref='0'; ReadFile(VIEW_PREF,&view_pref,1); grid_view=view_pref=='1';
+  if(grid_view) gridFocus(base_pos+rel_pos);
+#endif
 
   while (1) {
     readPad();
@@ -1004,12 +1013,14 @@ int browserMain() {
 #ifdef __SWITCH2__
     float tx, ty;
     int gesture=switch2TakeTap(&tx,&ty);
+    if(strcmp(last_tap_path,file_list.path)!=0) { last_tap_pos=-1; touch_select=0; search_query[0]=0; snprintf(last_tap_path,sizeof(last_tap_path),"%s",file_list.path); }
+    for(int k=0;k<PAD_N_BUTTONS;k++) if(pressed_pad[k]) { last_tap_pos=-1; break; }
     if (!browserHasFocus() || isImeDialogRunning()) { gesture=0; last_tap_pos=-1; }
     if(search_pending) {
       int result=updateImeDialog();
       if(result==IME_DIALOG_RESULT_FINISHED) {
         snprintf(search_query,sizeof(search_query),"%s",(char*)getImeDialogInputTextUTF8());
-        if(search_query[0]) { FileListEntry *e=fileListGetNthEntry(&file_list,0); for(;e;e=e->next) if(strcasestr(e->name,search_query)) { setFocusOnFilename(e->name); break; } }
+        search_found=0; if(search_query[0]) { FileListEntry *e=fileListGetNthEntry(&file_list,0); for(;e;e=e->next) if(strcasestr(e->name,search_query)) { setFocusOnFilename(e->name); search_found=1; break; } }
       }
       if(result!=IME_DIALOG_RESULT_RUNNING) search_pending=0;
       gesture=0;
@@ -1019,10 +1030,10 @@ int browserMain() {
       else if(gesture==1 && ty>=START_Y-FONT_Y_SPACE && ty<START_Y && tx>=SCREEN_WIDTH-360 && tx<SCREEN_WIDTH-255) { search_pending=initImeDialog("Find file", "", 30, 0, 0, 0)>=0; last_tap_pos=-1; }
       else if(gesture==1 && ty>=START_Y-FONT_Y_SPACE && ty<START_Y && tx>=SCREEN_WIDTH-255 && tx<SCREEN_WIDTH-160) { touch_select=!touch_select; last_tap_pos=-1; }
       else
-      if(tx>=SCREEN_WIDTH-160 && tx<SCREEN_WIDTH-SHELL_MARGIN_X && ty>=START_Y-FONT_Y_SPACE && ty<START_Y) { grid_view=!grid_view; if(grid_view) gridFocus(base_pos+rel_pos); }
-      else if(tx>=SHELL_MARGIN_X && tx<SCREEN_WIDTH-SHELL_MARGIN_X && ty>=START_Y) {
+      if(gesture==1 && tx>=SCREEN_WIDTH-160 && tx<SCREEN_WIDTH-SHELL_MARGIN_X && ty>=START_Y-FONT_Y_SPACE && ty<START_Y) { grid_view=!grid_view; if(grid_view) gridFocus(base_pos+rel_pos); saveView(); last_tap_pos=-1; }
+      else if(tx>=SHELL_MARGIN_X && tx<SCREEN_WIDTH-SHELL_MARGIN_X && ty>=START_Y && ty<START_Y+(grid_view?3*GRID_H:MAX_ENTRIES*FONT_Y_SPACE)) {
         int row=grid_view ? (int)((ty-START_Y)/GRID_H)*GRID_COLS+(int)((tx-SHELL_MARGIN_X)/GRID_W) : (int)((ty-START_Y)/FONT_Y_SPACE);
-        if(row>=0 && row<(grid_view?GRID_COUNT:MAX_ENTRIES) && base_pos+row<file_list.length) { rel_pos=row; scroll_count=0; scroll_x=FILE_X; int pos=base_pos+row; uint64_t now=sceKernelGetProcessTimeWide(); if(gesture==2) { pressed_pad[PAD_TRIANGLE]=1; last_tap_pos=-1; } else if(touch_select) { pressed_pad[PAD_SQUARE]=1; last_tap_pos=-1; } else if(last_tap_pos==pos && now-last_tap_time<350000) { pressed_pad[PAD_ENTER]=1; last_tap_pos=-1; } else { last_tap_pos=pos; last_tap_time=now; } }
+        if(row>=0 && row<(grid_view?GRID_COUNT:MAX_POSITION) && base_pos+row<file_list.length) { rel_pos=row; scroll_count=0; scroll_x=FILE_X; int pos=base_pos+row; uint64_t now=sceKernelGetProcessTimeWide(); if(gesture==2) { pressed_pad[PAD_TRIANGLE]=1; last_tap_pos=-1; } else if(touch_select) { pressed_pad[PAD_SQUARE]=1; last_tap_pos=-1; } else if(last_tap_pos==pos && now-last_tap_time<350000) { pressed_pad[PAD_ENTER]=1; last_tap_pos=-1; } else { last_tap_pos=pos; last_tap_time=now; } }
       }
     }
 #endif
@@ -1081,7 +1092,10 @@ int browserMain() {
     // Draw
     drawShellInfo(file_list.path);
 #ifdef __SWITCH2__
-    // Keep the second path line available for long paths.
+    // Toolbar owns the second path line; clip status to its left.
+    vita2d_draw_rectangle(0,START_Y-FONT_Y_SPACE,SCREEN_WIDTH,FONT_Y_SPACE,0xFF211E1B);
+    vita2d_enable_clipping(); vita2d_set_clip_rectangle(SHELL_MARGIN_X,START_Y-FONT_Y_SPACE,SCREEN_WIDTH-365,START_Y-6);
+    if(search_query[0]) { char result[180]; snprintf(result,sizeof(result),"%s: %s",search_found?"Found":"No match",search_query); pgf_draw_text(SHELL_MARGIN_X,START_Y-FONT_Y_SPACE,DATE_TIME_COLOR,result); } else
     if (pgf_text_width(file_list.path) < MAX_WIDTH && strlen(file_list.path) < 255) {
       float hy = START_Y - FONT_Y_SPACE;
       if (ftpvita_is_initialized()) {
@@ -1090,14 +1104,14 @@ int browserMain() {
         char status[128];
         unsigned elapsed = ftpvita_uptime();
         snprintf(status, sizeof(status), "FTP %s | %u clients | UP %.1f MiB | DOWN %.1f MiB | %um%02us", ftpvita_is_recovering() ? "RECOVERING" : "ON", clients, (double)up / 1048576.0, (double)down / 1048576.0, elapsed / 60, elapsed % 60);
-        if (pgf_text_width(status) < MAX_WIDTH) pgf_draw_text(FILE_X, hy, DATE_TIME_COLOR, status);
+        pgf_draw_text(FILE_X, hy, DATE_TIME_COLOR, status);
       } else {
       pgf_draw_text(FILE_X, hy, DATE_TIME_COLOR, "Name");
       const char *size_label = dir_level == 0 ? "Used / Capacity" : "Size / Type";
-      pgf_draw_text(ALIGN_RIGHT(INFORMATION_X, pgf_text_width(size_label)), hy, DATE_TIME_COLOR, size_label);
-      if(!grid_view) pgf_draw_text(ALIGN_RIGHT(SCREEN_WIDTH - 175, pgf_text_width("Modified")), hy, DATE_TIME_COLOR, "Modified");
+      (void)size_label;
       }
     }
+    vita2d_disable_clipping();
 #endif
  #ifdef __SWITCH2__
     vita2d_draw_rectangle(SCREEN_WIDTH-360,START_Y-FONT_Y_SPACE,100,FONT_Y_SPACE,0xFF39332D);
@@ -1201,6 +1215,9 @@ int browserMain() {
         if (fileListFindEntry(&mark_list, file_entry->name))
           vita2d_draw_rectangle(SHELL_MARGIN_X, y + 3.0f, MARK_WIDTH, FONT_Y_SPACE, MARKED_COLOR);
 
+ #ifdef __SWITCH2__
+        if(touch_select) { vita2d_draw_rectangle(SHELL_MARGIN_X,y+5,16,16,0xFF7C7167); vita2d_draw_rectangle(SHELL_MARGIN_X+2,y+7,12,12,fileListFindEntry(&mark_list,file_entry->name)?0xFFFFB568:0xFF211E1B); }
+#endif
         // Draw file name
         vita2d_enable_clipping();
         vita2d_set_clip_rectangle(FILE_X + 1.0f, y, FILE_X + 1.0f + MAX_NAME_WIDTH, y + FONT_Y_SPACE);
