@@ -326,9 +326,9 @@ void drawSettingsMenu() {
   vita2d_draw_rectangle(0,0,SCREEN_WIDTH,SCREEN_HEIGHT,0x99000000);
   float px=settingsPanelX(),py=settingsPanelY();
   vita2d_draw_rectangle(px,py,SCREEN_WIDTH-2*px,theme_page?340:220,SETTINGS_MENU_COLOR);
-  pgf_draw_text(px+12,py+12,SETTINGS_MENU_TITLE_COLOR,theme_page?"Vivid UI Themes":"Settings");
+  pgf_draw_text(px+12,py+12,SETTINGS_MENU_TITLE_COLOR,theme_page?"NS2xZilla Themes":"Settings");
   if(theme_page){float w=(SCREEN_WIDTH-2*px-24)/2;for(int i=0;i<8;i++){float x=px+8+(i%2)*(w+8),y=py+45+(i/2)*60;vita2d_draw_rectangle(x,y,w,54,i==theme_focus?switch2ThemeColor(i):SETTINGS_MENU_FOCUS_COLOR);vita2d_draw_rectangle(x+3,y+3,w-6,48,SETTINGS_MENU_COLOR);vita2d_draw_rectangle(x+10,y+12,24,24,switch2ThemeColor(i));pgf_draw_text(x+42,y+14,0xffffffff,switch2ThemeName(i));if(i==switch2ThemeIndex())pgf_draw_text(x+w-24,y+14,0xffffffff,"*");}}
-  else {for(int i=0;i<2;i++){float y=py+45+i*65;vita2d_draw_rectangle(px+8,y,SCREEN_WIDTH-2*px-16,55,i==settings_focus?SETTINGS_MENU_FOCUS_COLOR:SETTINGS_MENU_COLOR);pgf_draw_text(px+20,y+6,0xffffffff,i?"Exit NS2xZilla":"Vivid UI Themes");if(!i)pgf_draw_text(px+20,y+29,SETTINGS_MENU_OPTION_COLOR,switch2ThemeName(switch2ThemeIndex()));}}
+  else {for(int i=0;i<2;i++){float y=py+45+i*65;vita2d_draw_rectangle(px+8,y,SCREEN_WIDTH-2*px-16,55,i==settings_focus?SETTINGS_MENU_FOCUS_COLOR:SETTINGS_MENU_COLOR);pgf_draw_text(px+20,y+6,0xffffffff,i?"Exit NS2xZilla":"NS2xZilla Themes");if(!i)pgf_draw_text(px+20,y+29,SETTINGS_MENU_OPTION_COLOR,switch2ThemeName(switch2ThemeIndex()));}}
   float fy=py+(theme_page?300:180);vita2d_draw_rectangle(px+12,fy,25,25,0xff45a622);pgf_draw_text(px+18,fy,0xffffffff,"A");pgf_draw_text(px+45,fy,0xffffffff,"Open / Select");vita2d_draw_rectangle(SCREEN_WIDTH/2+12,fy,25,25,0xff4040dc);pgf_draw_text(SCREEN_WIDTH/2+18,fy,0xffffffff,"B");pgf_draw_text(SCREEN_WIDTH/2+45,fy,0xffffffff,"Back");
   return;
 #else
