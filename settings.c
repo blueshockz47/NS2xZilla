@@ -282,6 +282,17 @@ int getSettingsMenuStatus() {
   return settings_menu.status;
 }
 
+#ifdef __SWITCH2__
+static float settingsPanelX(void){return 24.0f;}
+static float settingsPanelY(void){return (SCREEN_HEIGHT-220.0f)/2;}
+void settingsMenuTap(float tx,float ty){
+  if(settings_menu.status!=SETTINGS_MENU_OPENED && settings_menu.status!=SETTINGS_MENU_OPENING) return;
+  float x=settingsPanelX(),y=settingsPanelY();
+  if(tx<x||tx>SCREEN_WIDTH-x||ty<y||ty>y+220){closeSettingsMenu();return;}
+  if(ty>=y+48&&ty<y+92){switch2_orientation=(switch2_orientation+(tx<SCREEN_HALF_WIDTH?3:1))%4;changed=1;saveSettingsConfig();}
+  else if(ty>=y+125&&ty<y+185) exitShell();
+}
+#endif
 void drawSettingsMenu() {
   if (settings_menu.status == SETTINGS_MENU_CLOSED)
     return;
@@ -307,7 +318,16 @@ void drawSettingsMenu() {
   // Draw settings menu
 #ifdef __SWITCH2__
   vita2d_draw_rectangle(0,0,SCREEN_WIDTH,SCREEN_HEIGHT,0x99000000);
-  vita2d_draw_rectangle(120,SCREEN_HEIGHT-settings_menu.cur_pos+70,SCREEN_WIDTH-240,260,SETTINGS_MENU_COLOR);
+  float px=settingsPanelX(),py=settingsPanelY();
+  vita2d_draw_rectangle(px,py,SCREEN_WIDTH-2*px,220,SETTINGS_MENU_COLOR);
+  pgf_draw_text((SCREEN_WIDTH-pgf_text_width("Settings"))/2,py+12,SETTINGS_MENU_TITLE_COLOR,"Settings");
+  vita2d_draw_rectangle(px+8,py+48,SCREEN_WIDTH-2*px-16,44,settings_menu.entry_sel==0?SETTINGS_MENU_FOCUS_COLOR:SETTINGS_MENU_COLOR);
+  pgf_draw_text(px+16,py+59,SETTINGS_MENU_ITEM_COLOR,"Screen rotation");
+  const char *orientation=orientation_options[switch2_orientation];
+  pgf_draw_text(SCREEN_WIDTH-px-16-pgf_text_width(orientation),py+59,SETTINGS_MENU_OPTION_COLOR,orientation);
+  vita2d_draw_rectangle(px+8,py+125,SCREEN_WIDTH-2*px-16,60,settings_menu.entry_sel==1?SETTINGS_MENU_FOCUS_COLOR:SETTINGS_MENU_COLOR);
+  pgf_draw_text((SCREEN_WIDTH-pgf_text_width("Exit NS2xZilla"))/2,py+142,SETTINGS_MENU_ITEM_COLOR,"Exit NS2xZilla");
+  return;
 #else
   vita2d_draw_texture(settings_image, 0.0f, SCREEN_HEIGHT - settings_menu.cur_pos);
 #endif
@@ -380,12 +400,6 @@ void settingsDisagree() {
 
 void settingsMenuCtrl() {
 #ifdef __SWITCH2__
-  float tx,ty;
-  if(settings_menu.status==SETTINGS_MENU_OPENED && switch2TakeTap(&tx,&ty)==1) {
-    if(tx<120||tx>SCREEN_WIDTH-120||ty<70||ty>330) { closeSettingsMenu(); return; }
-    if(ty>=100+FONT_Y_SPACE && ty<100+2*FONT_Y_SPACE) { switch2_orientation=(switch2_orientation+(tx<SCREEN_HALF_WIDTH?3:1))%4; changed=1; return; }
-    if(ty>=100+4*FONT_Y_SPACE && ty<100+5*FONT_Y_SPACE) { exitShell(); return; }
-  }
 #endif
   SettingsMenuOption *option = &settings_menu_entries[settings_menu.entry_sel].options[settings_menu.option_sel];
 
