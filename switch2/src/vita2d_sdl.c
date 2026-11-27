@@ -67,9 +67,13 @@ static float output_scale = 1.0f;
 int switch2_orientation=0;
 static int effective_orientation=0;
 static SDL_Texture *rotation_target=NULL;
+static int target_w=0,target_h=0;
+int switch2Portrait(void){return effective_orientation%2;}
+int switch2ScreenWidth(void){return switch2Portrait()?544:960;}
+int switch2ScreenHeight(void){return switch2Portrait()?960:544;}
 int switch2EffectiveOrientation(void) { return effective_orientation; }
 static float rotationScale(int w,int h,int o) {
-  return fminf((float)w/(o%2?VITA2D_LOGICAL_HEIGHT:VITA2D_LOGICAL_WIDTH),(float)h/(o%2?VITA2D_LOGICAL_WIDTH:VITA2D_LOGICAL_HEIGHT));
+  return fminf((float)w/960,(float)h/544);
 }
 int switch2MapTouch(float nx,float ny,float *x,float *y) {
   int w=0,h=0,o=effective_orientation;
@@ -77,8 +81,8 @@ int switch2MapTouch(float nx,float ny,float *x,float *y) {
   float s=rotationScale(w,h,o), a=(nx*w-w*.5f)/s,b=(ny*h-h*.5f)/s;
   float u=a,v=b;
   if(o==1){u=b;v=-a;} else if(o==2){u=-a;v=-b;} else if(o==3){u=-b;v=a;}
-  *x=u+VITA2D_LOGICAL_WIDTH*.5f; *y=v+VITA2D_LOGICAL_HEIGHT*.5f;
-  return *x>=0&&*x<VITA2D_LOGICAL_WIDTH&&*y>=0&&*y<VITA2D_LOGICAL_HEIGHT;
+  *x=u+switch2ScreenWidth()*.5f; *y=v+switch2ScreenHeight()*.5f;
+  return *x>=0&&*x<switch2ScreenWidth()&&*y>=0&&*y<switch2ScreenHeight();
 }
 
 // AM signals it when the default resolution changes and the new one is
@@ -234,10 +238,12 @@ void vita2d_start_drawing(void) {
 
   effective_orientation=0;
   if(switch2_orientation>0&&switch2_orientation<4&&SDL_RenderTargetSupported(renderer)) {
-    if(!rotation_target) rotation_target=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA8888,SDL_TEXTUREACCESS_TARGET,VITA2D_LOGICAL_WIDTH,VITA2D_LOGICAL_HEIGHT);
+    int tw=switch2_orientation%2?544:960,th=switch2_orientation%2?960:544;
+    if(rotation_target&&(target_w!=tw||target_h!=th)){SDL_DestroyTexture(rotation_target);rotation_target=NULL;}
+    if(!rotation_target){rotation_target=SDL_CreateTexture(renderer,SDL_PIXELFORMAT_RGBA8888,SDL_TEXTUREACCESS_TARGET,tw,th);target_w=tw;target_h=th;}
     if(rotation_target&&SDL_SetRenderTarget(renderer,rotation_target)==0) {
       effective_orientation=switch2_orientation;
-      SDL_RenderSetLogicalSize(renderer,VITA2D_LOGICAL_WIDTH,VITA2D_LOGICAL_HEIGHT);
+      SDL_RenderSetLogicalSize(renderer,tw,th);
       output_scale=1.0f;
     }
   }
@@ -256,7 +262,7 @@ void vita2d_swap_buffers(void) {
     SDL_RenderSetClipRect(renderer,NULL);
     int w=0,h=0; SDL_GetRendererOutputSize(renderer,&w,&h);
     float s=rotationScale(w,h,effective_orientation);
-    SDL_FRect dst={(w-VITA2D_LOGICAL_WIDTH*s)/2,(h-VITA2D_LOGICAL_HEIGHT*s)/2,VITA2D_LOGICAL_WIDTH*s,VITA2D_LOGICAL_HEIGHT*s};
+    SDL_FRect dst={(w-target_w*s)/2,(h-target_h*s)/2,target_w*s,target_h*s};
     SDL_SetRenderDrawColor(renderer,0,0,0,255); SDL_RenderClear(renderer);
     SDL_RenderCopyExF(renderer,rotation_target,NULL,&dst,effective_orientation*90.0,NULL,SDL_FLIP_NONE);
     SDL_RenderPresent(renderer);
