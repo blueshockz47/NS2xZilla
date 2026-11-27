@@ -1224,8 +1224,7 @@ int browserMain() {
           snprintf(file_name, MAX_PATH_LENGTH, "%s  → %s",
                    file_entry->name, file_entry->symlink->target_path);
         } else {
-          strncpy(file_name, file_entry->name, file_entry->name_length + 1);
-          file_name[file_entry->name_length] = '\0';
+          snprintf(file_name,sizeof(file_name),"%s",file_entry->name);
         }
         if (i == rel_pos) {
           int width = (int)pgf_text_width(file_name);
@@ -1272,9 +1271,9 @@ int browserMain() {
             pgf_draw_text(x, y, color, used_size_string);
           } else {
             char *str = NULL;
+            char string[16];
             if (!file_entry->is_folder) {
               // Folder/size
-              char string[16];
               getSizeString(string, file_entry->size);
               str = string;
             } else {
@@ -1319,6 +1318,7 @@ int browserMain() {
   fileListEmpty(&copy_list);
   fileListEmpty(&mark_list);
   fileListEmpty(&file_list);
+  fileListEmpty(&install_list);
 
   return 0;
 }
