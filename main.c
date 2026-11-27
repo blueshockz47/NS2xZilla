@@ -202,8 +202,11 @@ void drawShellInfo(const char *path) {
 #ifdef __SWITCH2__
   /* Browser toolbar owns the second line. Clip rather than copying an
      arbitrary-length path into fixed-size buffers. */
+  const char *rotate_hint="ZL/ZR Rotate";
+  float hint_x=SCREEN_WIDTH-SHELL_MARGIN_X-pgf_text_width(rotate_hint);
+  pgf_draw_text(hint_x,PATH_Y,DATE_TIME_COLOR,rotate_hint);
   vita2d_enable_clipping();
-  vita2d_set_clip_rectangle(SHELL_MARGIN_X,PATH_Y,SCREEN_WIDTH-SHELL_MARGIN_X,PATH_Y+FONT_Y_SPACE);
+  vita2d_set_clip_rectangle(SHELL_MARGIN_X,PATH_Y,hint_x-12,PATH_Y+FONT_Y_SPACE);
   pgf_draw_text(SHELL_MARGIN_X,PATH_Y,PATH_COLOR,path ? path : "");
   vita2d_disable_clipping();
 #else
