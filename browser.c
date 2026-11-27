@@ -97,7 +97,7 @@ static void saveView(void) { char v=grid_view?'1':'0'; WriteFile(VIEW_PREF,&v,1)
 #define GRID_COUNT (GRID_COLS*GRID_ROWS)
 #define GRID_W ((SCREEN_WIDTH-2*SHELL_MARGIN_X)/GRID_COLS)
 #define GRID_H (switch2Portrait()?116.0f:104.0f)
-#define BROWSER_TOP (START_Y+65.0f)
+#define BROWSER_TOP (START_Y+42.0f)
 static void gridFocus(int pos) {
   if (file_list.length <= 0) { base_pos=rel_pos=0; return; }
   pos=MAX(0,MIN(pos,file_list.length-1));
@@ -989,7 +989,7 @@ static int drag_mode,drag_start_base;
 static float drag_last_y,drag_velocity,drag_fraction;
 static uint64_t drag_time;
 static void scrollToBase(int pos){int step=grid_view?GRID_COLS:1;int visible=grid_view?GRID_COUNT:MIN(MAX_POSITION,(int)((HINT_BAR_TOP-BROWSER_TOP)/FONT_Y_SPACE));int limit=MAX(0,file_list.length-visible);if(grid_view)limit=((limit+step-1)/step)*step;pos=MAX(0,MIN(pos,limit));base_pos=(pos/step)*step;rel_pos=0;last_tap_pos=-1;}
-static float headerSearchX(void){return SHELL_MARGIN_X;}
+static float headerSearchX(void){return SHELL_MARGIN_X+(switch2Portrait()?165:220);}
 static float headerViewX(void){return SCREEN_WIDTH-170;}
 
 static float toolbarEdge(int n) { static const float edges[]={0,.17f,.36f,.47f,.58f,.75f,1}; return switch2Portrait()?SCREEN_WIDTH*(n%3)/3.0f:SCREEN_WIDTH*((touch_select)?n/6.0f:edges[n]); }
@@ -1121,10 +1121,10 @@ int browserMain() {
     }
     if (gesture && browserHasFocus()) {
       if(gesture==1 && ty>=HINT_BAR_TOP+(switch2Portrait()?54:34) || (gesture==1&&!switch2Portrait()&&!touch_select&&ty>=HINT_BAR_TOP&&tx>=toolbarEdge(5)) && tx>=0 && tx<SCREEN_WIDTH) { int slot=0; if(switch2Portrait()) slot=MIN(2,(int)(tx*3/SCREEN_WIDTH))+(ty>=HINT_BAR_TOP+104?3:0); else while(slot<5 && tx>=toolbarEdge(slot+1)) slot++; if(switch2Portrait()&&!touch_select) slot=slot==2|| (slot==5&&ty<HINT_BAR_TOP+128)?5:slot==4?2:slot==5?4:slot; if(touch_select) { if(slot==5) { touch_select=0; fileListEmpty(&mark_list); } else if(slot==4) { fileListEmpty(&mark_list); for(FileListEntry *e=file_list.head;e;e=e->next) if(strcmp(e->name,DIR_UP)!=0 && dir_level>0) fileListAddEntry(&mark_list,fileListCopyEntry(e),SORT_NONE); } else if(mark_list.length>0 && dir_level>0) { setFocusOnFilename(mark_list.head->name); setContextMenuMainVisibilities(); int names[]={COPY,MOVE,RENAME,DELETE}; for(int j=0;j<context_menu_main.n_entries;j++) if(context_menu_main.entries[j].name==names[slot] && context_menu_main.entries[j].visibility==CTX_VISIBLE && (slot!=2 || mark_list.length==1)) { context_menu_main.callback(j,context_menu_main.context); if(slot<2) { touch_select=0; fileListEmpty(&mark_list); } break; } } } else { int keys[]={PAD_SELECT,PAD_START,PAD_CANCEL,PAD_ENTER,PAD_TRIANGLE,PAD_SQUARE}; if(slot==2)browserFileAction(COPY);else if(slot==3)browserFileAction(PASTE);else if(slot==5)touch_select=1;else pressed_pad[keys[slot]]=1; } last_tap_pos=-1; }
-      else if(gesture==1 && ty>=START_Y-FONT_Y_SPACE && ty<START_Y+5 && tx>=SHELL_MARGIN_X && tx<headerViewX()) { nextPalette(); }
+      else if(gesture==1 && ty>=PATH_Y && ty<PATH_Y+52 && tx>=SHELL_MARGIN_X && tx<headerSearchX()-6) { nextPalette(); }
       else if(gesture==1&&tx>=SCREEN_WIDTH-20&&ty>=BROWSER_TOP&&ty<HINT_BAR_TOP){int visible=grid_view?GRID_COUNT:MIN(MAX_ENTRIES,(int)((HINT_BAR_TOP-BROWSER_TOP)/FONT_Y_SPACE));int pos=(int)((ty-BROWSER_TOP)/(HINT_BAR_TOP-BROWSER_TOP)*MAX(0,file_list.length-visible));base_pos=grid_view?(pos/GRID_COLS)*GRID_COLS:pos;rel_pos=0;last_tap_pos=-1;}
       else if(gesture>=3) { int pos=base_pos+rel_pos+(gesture==3?1:-1)*(grid_view?GRID_COLS:4); if(grid_view) gridFocus(pos); else if(file_list.length>0) { pos=MAX(0,MIN(pos,file_list.length-1)); base_pos=MAX(0,MIN(pos,MAX(0,file_list.length-MAX_ENTRIES))); rel_pos=pos-base_pos; } last_tap_pos=-1; }
-      else if(gesture==1 && ty>=START_Y+5 && ty<START_Y+36 && tx>=headerSearchX() && tx<headerViewX()) { if(tx>=headerViewX()-35){search_query[0]=0;search_found=0;}else search_pending=initImeDialog("Search files",search_query,30,0,0,0)>=0;last_tap_pos=-1; }
+      else if(gesture==1 && ty>=PATH_Y+10 && ty<PATH_Y+41 && tx>=headerSearchX() && tx<headerViewX()) { if(tx>=headerViewX()-35){search_query[0]=0;search_found=0;}else search_pending=initImeDialog("Search files",search_query,30,0,0,0)>=0;last_tap_pos=-1; }
       else if(gesture==1 && tx>=headerViewX() && tx<SCREEN_WIDTH && ty>=START_Y-FONT_Y_SPACE && ty<START_Y+36) { last_tap_pos=-1; }
       else if(tx>=SHELL_MARGIN_X && tx<SCREEN_WIDTH-SHELL_MARGIN_X && ty>=BROWSER_TOP && ty<BROWSER_TOP+(grid_view?GRID_ROWS*GRID_H:MAX_ENTRIES*FONT_Y_SPACE)) {
         int row=grid_view ? (int)((ty-BROWSER_TOP)/GRID_H)*GRID_COLS+(int)((tx-SHELL_MARGIN_X)/GRID_W) : (int)((ty-BROWSER_TOP)/FONT_Y_SPACE);
@@ -1188,22 +1188,31 @@ int browserMain() {
 #endif
 
     // Draw
+    #ifdef __SWITCH2__
+    drawShellInfo(NULL);
+#else
     drawShellInfo(file_list.path);
+#endif
 #ifdef __SWITCH2__
-    float hy=START_Y+5;
-    pgf_draw_text(headerViewX(),hy-52,accents[palette],"L3 Root");
+    float hy=PATH_Y+10;
     vita2d_draw_rectangle(0,hy,SCREEN_WIDTH,FONT_Y_SPACE,panels[palette]);
     
-    pgf_draw_text(SHELL_MARGIN_X+3,hy-28,accents[palette],switch2ThemeName(palette));
+    vita2d_enable_clipping();vita2d_set_clip_rectangle(SHELL_MARGIN_X,hy,headerSearchX()-8,hy+31);pgf_draw_text(SHELL_MARGIN_X+3,hy+3,accents[palette],switch2ThemeName(palette));vita2d_disable_clipping();
     float sx=headerSearchX(),vx=headerViewX();
     roundedBox(sx,hy,vx-sx-6,31,8,accents[palette]);roundedBox(sx+2,hy+2,vx-sx-10,27,6,backgrounds[palette]);
     vita2d_enable_clipping();vita2d_set_clip_rectangle(sx+30,hy,vx-35,hy+31);
     if(search_query[0])pgf_draw_text(sx+30,hy+3,0xFFFFFFFF,search_query);else pgf_draw_text(sx+30,hy+3,0xFFFFFFFF,"Search files...");
     vita2d_disable_clipping();
     pgf_draw_text(vx-30,hy+3,0xFFFFFFFF,"X");
-    pgf_draw_textf(SHELL_MARGIN_X,hy+33,DATE_TIME_COLOR,"%d items",MAX(0,file_list.length-(dir_level>0?1:0)));
+    char count_text[40];snprintf(count_text,sizeof(count_text),"%d items",MAX(0,file_list.length-(dir_level>0?1:0)));
+    float info_y=PATH_Y+57, path_x=SHELL_MARGIN_X+pgf_text_width(count_text)+18;
+    pgf_draw_text(SHELL_MARGIN_X,info_y,DATE_TIME_COLOR,count_text);
+    vita2d_enable_clipping();vita2d_set_clip_rectangle(path_x,info_y,SCREEN_WIDTH-SHELL_MARGIN_X,info_y+FONT_Y_SPACE);
+    const char *shown=file_list.path;while(*shown&&pgf_text_width(shown)>SCREEN_WIDTH-SHELL_MARGIN_X-path_x-20){shown++;while(((unsigned char)*shown&0xc0)==0x80)shown++;}
+    if(shown!=file_list.path){pgf_draw_text(path_x,info_y,PATH_COLOR,"...");path_x+=pgf_text_width("...");}
+    pgf_draw_text(path_x,info_y,PATH_COLOR,shown);vita2d_disable_clipping();
     roundedBox(sx+9,hy+8,12,12,6,accents[palette]);roundedBox(sx+11,hy+10,8,8,4,backgrounds[palette]);vita2d_draw_rectangle(sx+19,hy+19,5,3,accents[palette]);
-    for(int b=0;b<2;b++){float y=hy-28+b*28;
+    for(int b=0;b<2;b++){float y=PATH_Y+b*26;
       roundedBox(vx,y,SCREEN_WIDTH-vx-SHELL_MARGIN_X,26,5,panels[palette]);
       const char *label=b?"ZL/ZR Rotate":"+ Grid/List";
       pgf_draw_text(vx+25,y,0xffffffff,label);
