@@ -26,7 +26,7 @@ OUT := build/switch2
 NAME := ounceshell-pro
 TITLE := OunceShell Pro
 AUTHOR := TheFloW (VitaShell), kurumuz
-VERSION := 1.0.0-RC16
+VERSION := 1.0.0-RC17
 # The homebrew menu's icon, a 256x256 JPEG.
 ICON := switch2/resources/icon.jpg
 
