@@ -300,7 +300,11 @@ void drawSettingsMenu() {
   }
 
   // Draw settings menu
+#ifdef __SWITCH2__
+  vita2d_draw_rectangle(0,SCREEN_HEIGHT-settings_menu.cur_pos,SCREEN_WIDTH,settings_menu.cur_pos,SETTINGS_MENU_COLOR);
+#else
   vita2d_draw_texture(settings_image, 0.0f, SCREEN_HEIGHT - settings_menu.cur_pos);
+#endif
 
   float y = SCREEN_HEIGHT - settings_menu.cur_pos + START_Y;
 
