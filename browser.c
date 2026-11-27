@@ -915,7 +915,23 @@ static int browserHasFocus(void) {
 
 /* Rounded silhouettes using non-overlapping scanline bands. */
 static void roundedBox(float x,float y,float w,float h,int radius,unsigned int color) {
-  for(int n=0;n<radius;n++) { float dy=radius-n-.5f; float dx=radius-sqrtf(radius*radius-dy*dy); vita2d_draw_rectangle(x+dx,y+n,w-2*dx,1,color); vita2d_draw_rectangle(x+dx,y+h-n-1,w-2*dx,1,color); }
+  /* Cache corner geometry; combine adjacent equal-width bands. */
+  static float inset[16][16];
+  static unsigned char ready[16];
+  radius=MAX(0,MIN(radius,15));
+  radius=MIN(radius,(int)(MIN(w,h)/2));
+  if(!radius) { vita2d_draw_rectangle(x,y,w,h,color); return; }
+  if(!ready[radius]) {
+    for(int n=0;n<radius;n++) { float dy=radius-n-.5f; inset[radius][n]=floorf(radius-sqrtf(radius*radius-dy*dy)+.5f); }
+    ready[radius]=1;
+  }
+  for(int n=0;n<radius;) {
+    float dx=inset[radius][n]; int end=n+1;
+    while(end<radius && inset[radius][end]==dx) end++;
+    vita2d_draw_rectangle(x+dx,y+n,w-2*dx,end-n,color);
+    vita2d_draw_rectangle(x+dx,y+h-end,w-2*dx,end-n,color);
+    n=end;
+  }
   vita2d_draw_rectangle(x,y+radius,w,h-2*radius,color);
 }
 static unsigned int shade(unsigned int c,int percent) {
@@ -944,9 +960,10 @@ static void drawGrid(void) {
   for(int i=0;e && i<GRID_COUNT;i++,e=e->next) {
     float x=SHELL_MARGIN_X+(i%GRID_COLS)*GRID_W, y=START_Y+(i/GRID_COLS)*GRID_H;
     if(i==rel_pos) roundedBox(x+4,y+2,GRID_W-8,GRID_H-6,10,((accents[palette]&0xffffff)|0x50000000));
-    if(strcmp(e->name,DIR_UP)!=0 && (touch_select || fileListFindEntry(&mark_list,e->name))) { vita2d_draw_rectangle(x+8,y+6,16,16,0xFF7C7167); vita2d_draw_rectangle(x+10,y+8,12,12,fileListFindEntry(&mark_list,e->name)?accents[palette]:panels[palette]); }
+    int marked=mark_list.length && fileListFindEntry(&mark_list,e->name)!=NULL;
+    if(strcmp(e->name,DIR_UP)!=0 && (touch_select || marked)) { vita2d_draw_rectangle(x+8,y+6,16,16,0xFF7C7167); vita2d_draw_rectangle(x+10,y+8,12,12,marked?accents[palette]:panels[palette]); }
     drawModernIcon(e,x+(GRID_W-72)/2,y+7,72);
-    char label[MAX_NAME_LENGTH]; snprintf(label,sizeof(label),"%s",strcmp(e->name,DIR_UP)==0?"Back":e->name); if(pgf_text_width(label)>GRID_W-16) { size_t n=strlen(label); while(n>0) { n--; while(n>0 && ((unsigned char)label[n]&0xc0)==0x80) n--; label[n]=0; if(pgf_text_width(label)+pgf_text_width("...")<=GRID_W-16) break; } if(strlen(label)+3<sizeof(label)) strcat(label,"..."); } float w=pgf_text_width(label);
+    char label[MAX_NAME_LENGTH]; snprintf(label,sizeof(label),"%s",strcmp(e->name,DIR_UP)==0?"Back":e->name); float w=pgf_text_width(label); if(w>GRID_W-16) { size_t offsets[MAX_NAME_LENGTH], count=0; for(size_t n=0;label[n];n++) if(((unsigned char)label[n]&0xc0)!=0x80) offsets[count++]=n; offsets[count]=strlen(label); float ellipsis=pgf_text_width("..."); size_t lo=0,hi=count; while(lo<hi) { size_t mid=(lo+hi+1)/2; char saved=label[offsets[mid]]; label[offsets[mid]]=0; float width=pgf_text_width(label); label[offsets[mid]]=saved; if(width+ellipsis<=GRID_W-16 && offsets[mid]+3<sizeof(label)) lo=mid; else hi=mid-1; } label[offsets[lo]]=0; strcat(label,"..."); w=pgf_text_width(label); }
     vita2d_enable_clipping(); vita2d_set_clip_rectangle(x+8,y+84,x+GRID_W-8,y+110);
     pgf_draw_text(x+MAX(8,(GRID_W-w)/2),y+86,i==rel_pos?FOCUS_COLOR:FILE_COLOR,label);
     vita2d_disable_clipping();
