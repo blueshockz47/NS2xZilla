@@ -29,6 +29,7 @@
 /* VitaShell reaches sceNetCtl through this header, as with libftpvita. */
 #include <psp2/net/netctl.h>
 #include <stdint.h>
+void ftpvita_metrics_rates(uint64_t *up,uint64_t *down);
 void ftpvita_metrics_client(int delta);
 void ftpvita_metrics_bytes(uint64_t bytes, int upload);
 void ftpvita_metrics_snapshot(unsigned *clients, uint64_t *up, uint64_t *down);
