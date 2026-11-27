@@ -1,36 +1,36 @@
 # VitaShell colors file
 
 # Shell colors
-BACKGROUND_COLOR             = 0xFF000000    # Black
-TITLE_COLOR                  = 0xFFFF007F    # Violet
-PATH_COLOR                   = 0xFFBFBFBF    # Litegray
-DATE_TIME_COLOR              = 0xFFFFFFFF    # White
-CONTROL_HINTS_BAR_COLOR      = 0x00000000    # None (Switch 2 button hints)
+BACKGROUND_COLOR             = 0xFF181513
+TITLE_COLOR                  = 0xFFF5F2EF
+PATH_COLOR                   = 0xFFB8ACA1
+DATE_TIME_COLOR              = 0xFFD9D3CC
+CONTROL_HINTS_BAR_COLOR      = 0xFF211E1B
 
 # Settings colors
 SETTINGS_MENU_COLOR          = 0xE0000000    # Black with alpha
-SETTINGS_MENU_FOCUS_COLOR    = 0x6FFF7F00    # Azure with alpha
+SETTINGS_MENU_FOCUS_COLOR    = 0x704D86BD
 SETTINGS_MENU_TITLE_COLOR    = 0xFFFFFFFF    # White
 SETTINGS_MENU_ITEM_COLOR     = 0xFF7F7F7F    # Gray
-SETTINGS_MENU_OPTION_COLOR   = 0xFF00FF00    # Green
+SETTINGS_MENU_OPTION_COLOR   = 0xFFFFB568
 
 # File browser colors
-FOCUS_COLOR                  = 0xFF00FF00    # Green
+FOCUS_COLOR                  = 0xFFFFFFFF
 FILE_COLOR                   = 0xFFFFFFFF    # White
 SFO_COLOR                    = 0xFFFFFFFF    # White
 TXT_COLOR                    = 0xFFFFFFFF    # White
-FOLDER_COLOR                 = 0xFFFFFF00    # Cyan
+FOLDER_COLOR                 = 0xFFFFB568
 IMAGE_COLOR                  = 0xFF7F00FF    # Rose
 ARCHIVE_COLOR                = 0xFF007FFF    # Orange
-SCROLL_BAR_COLOR             = 0xFFFF7F00    # Azure
-SCROLL_BAR_BG_COLOR          = 0xFF7F7F7F    # Gray
-MARKED_COLOR                 = 0x4FFF7F00    # Azure with alpha
+SCROLL_BAR_COLOR             = 0xFFFFB568
+SCROLL_BAR_BG_COLOR          = 0xFF39332D
+MARKED_COLOR                 = 0x704D86BD
 FILE_SYMLINK_COLOR           = 0xFFFFFFFF    # White
 FOLDER_SYMLINK_COLOR         = 0xFFFFFFFF    # White
 
 # Context menu colors
 CONTEXT_MENU_TEXT_COLOR      = 0xFFFFFFFF    # White
-CONTEXT_MENU_FOCUS_COLOR     = 0xFF00FF00    # Green
+CONTEXT_MENU_FOCUS_COLOR     = 0xFFFFB568
 CONTEXT_MENU_COLOR           = 0xFA2F2F2F    # Darkgray #2 with alpha
 CONTEXT_MENU_MORE_COLOR      = 0xFC282828    # Darkgray #3 with alpha
 INVISIBLE_COLOR              = 0xFF3F3F3F    # Darkgray #1
