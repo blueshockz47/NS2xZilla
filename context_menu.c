@@ -187,6 +187,21 @@ void drawContextMenu() {
   }
 }
 
+#ifdef __SWITCH2__
+void contextMenuTap(float x,float y) {
+  if (!cur_ctx || (ctx_menu_mode!=CONTEXT_MENU_OPENED && ctx_menu_mode!=CONTEXT_MENU_MORE_OPENED)) return;
+  float left=SCREEN_WIDTH-ctx_cur_menu_width+(cur_ctx->parent?cur_ctx->parent->max_width:0);
+  if(x<left || x>=SCREEN_WIDTH) return;
+  for(int i=0;i<cur_ctx->n_entries;i++) {
+    float top=START_Y+entryRow(cur_ctx,i)*FONT_Y_SPACE;
+    if(cur_ctx->entries[i].visibility==CTX_VISIBLE && y>=top && y<top+FONT_Y_SPACE) {
+      if(cur_ctx->sel==i) pressed_pad[PAD_ENTER]=1;
+      else cur_ctx->sel=i;
+      return;
+    }
+  }
+}
+#endif
 void contextMenuCtrl() {
   if (!cur_ctx)
     return;
