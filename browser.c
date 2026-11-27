@@ -70,6 +70,21 @@ int base_pos = 0, rel_pos = 0;
 static int base_pos_list[MAX_DIR_LEVELS];
 static int rel_pos_list[MAX_DIR_LEVELS];
 static int dir_level = 0;
+#ifdef __SWITCH2__
+static int grid_view;
+#define GRID_COLS 5
+#define GRID_COUNT 15
+#define GRID_W 184.0f
+#define GRID_H 132.0f
+static void gridFocus(int pos) {
+  if (file_list.length <= 0) { base_pos=rel_pos=0; return; }
+  pos=MAX(0,MIN(pos,file_list.length-1));
+  base_pos=(base_pos/GRID_COLS)*GRID_COLS;
+  if(pos<base_pos) base_pos=(pos/GRID_COLS)*GRID_COLS;
+  if(pos>=base_pos+GRID_COUNT) base_pos=(pos/GRID_COLS-2)*GRID_COLS;
+  rel_pos=pos-base_pos;
+}
+#endif
 
 // Modes
 int sort_mode = SORT_BY_NAME;
@@ -516,7 +531,21 @@ static int fileBrowserMenuCtrl() {
   int refresh = 0;
 
   // Short cuts combo
+#ifdef __SWITCH2__
+  if (pressed_pad[PAD_RIGHT_ANALOG_UP]) { grid_view=!grid_view; if(grid_view) gridFocus(base_pos+rel_pos); }
+  if (grid_view) {
+    int pos=base_pos+rel_pos;
+    if(hold_pad[PAD_UP] || hold2_pad[PAD_LEFT_ANALOG_UP]) gridFocus(pos-GRID_COLS);
+    else if(hold_pad[PAD_DOWN] || hold2_pad[PAD_LEFT_ANALOG_DOWN]) gridFocus(pos+GRID_COLS);
+    else if(hold_pad[PAD_LEFT] || hold2_pad[PAD_LEFT_ANALOG_LEFT]) gridFocus(pos-1);
+    else if(hold_pad[PAD_RIGHT] || hold2_pad[PAD_LEFT_ANALOG_RIGHT]) gridFocus(pos+1);
+    else if(hold_pad[PAD_LTRIGGER]) gridFocus(pos-GRID_COUNT);
+    else if(hold_pad[PAD_RTRIGGER]) gridFocus(pos+GRID_COUNT);
+  }
+  if (!grid_view && current_pad[PAD_LEFT])
+#else
   if (current_pad[PAD_LEFT])
+#endif
     return shortCuts();
 
   // Settings menu
@@ -574,6 +603,9 @@ static int fileBrowserMenuCtrl() {
   }
 
   // Move
+#ifdef __SWITCH2__
+  if (!grid_view) {
+#endif
   if (hold_pad[PAD_UP] || hold2_pad[PAD_LEFT_ANALOG_UP]) {
     int old_pos = base_pos + rel_pos;
 
@@ -625,6 +657,9 @@ static int fileBrowserMenuCtrl() {
     }
   }
 
+#ifdef __SWITCH2__
+  }
+#endif
   // Context menu trigger
   if (pressed_pad[PAD_TRIANGLE]) {
     if (getContextMenuMode() == CONTEXT_MENU_CLOSED) {
@@ -855,6 +890,35 @@ static int browserHasFocus(void) {
          getContextMenuMode() == CONTEXT_MENU_CLOSED;
 }
 
+static void drawModernIcon(FileListEntry *e, float x, float y, float s) {
+  if(e->is_folder) {
+    vita2d_draw_rectangle(x+s*.06f,y+s*.12f,s*.38f,s*.22f,0xFFC67B32);
+    vita2d_draw_rectangle(x+s*.06f,y+s*.25f,s*.88f,s*.61f,0xFFE6A34C);
+    vita2d_draw_rectangle(x+s*.06f,y+s*.34f,s*.88f,s*.52f,0xFFFFB568);
+    vita2d_draw_rectangle(x+s*.09f,y+s*.35f,s*.82f,s*.035f,0xFFFFD6A4);
+  } else {
+    vita2d_draw_rectangle(x+s*.19f,y+s*.07f,s*.62f,s*.82f,0xFFF0EAE4);
+    vita2d_draw_rectangle(x+s*.59f,y+s*.07f,s*.22f,s*.22f,0xFFC8BFB5);
+    unsigned int accent=0xFFCB9A68;
+    if(e->type==FILE_TYPE_ARCHIVE || e->type==FILE_TYPE_VPK) accent=0xFF52A5E8;
+    else if(e->type==FILE_TYPE_PNG || e->type==FILE_TYPE_JPEG || e->type==FILE_TYPE_BMP) accent=0xFF8EBB55;
+    else if(e->type==FILE_TYPE_MP3 || e->type==FILE_TYPE_OGG) accent=0xFFBC79BC;
+    vita2d_draw_rectangle(x+s*.19f,y+s*.57f,s*.62f,s*.19f,accent);
+  }
+}
+static void drawGrid(void) {
+  FileListEntry *e=fileListGetNthEntry(&file_list,base_pos);
+  for(int i=0;e && i<GRID_COUNT;i++,e=e->next) {
+    float x=SHELL_MARGIN_X+(i%GRID_COLS)*GRID_W, y=START_Y+(i/GRID_COLS)*GRID_H;
+    if(i==rel_pos) vita2d_draw_rectangle(x+4,y+2,GRID_W-8,GRID_H-6,0x603E79B0);
+    if(fileListFindEntry(&mark_list,e->name)) vita2d_draw_rectangle(x+8,y+6,10,10,0xFFFFB568);
+    drawModernIcon(e,x+(GRID_W-72)/2,y+7,72);
+    float w=pgf_text_width(e->name);
+    vita2d_enable_clipping(); vita2d_set_clip_rectangle(x+8,y+84,x+GRID_W-8,y+110);
+    pgf_draw_text(x+MAX(8,(GRID_W-w)/2),y+86,i==rel_pos?FOCUS_COLOR:FILE_COLOR,e->name);
+    vita2d_disable_clipping();
+  }
+}
 static void drawControlHints(void) {
   // The "Confirm button" setting swaps A and B.
   int a_confirms = enter_button == SCE_SYSTEM_PARAM_ENTER_BUTTON_CIRCLE;
@@ -936,9 +1000,12 @@ int browserMain() {
     int refresh = REFRESH_MODE_NONE;
 #ifdef __SWITCH2__
     float tx, ty;
-    if (switch2TakeTap(&tx, &ty) && browserHasFocus() && tx >= SHELL_MARGIN_X && tx < SCREEN_WIDTH-SHELL_MARGIN_X && ty >= START_Y && ty < START_Y+MAX_ENTRIES*FONT_Y_SPACE) {
-      int row = (int)((ty-START_Y)/FONT_Y_SPACE);
-      if (row < MAX_POSITION && base_pos+row < file_list.length) { rel_pos=row; scroll_count=0; scroll_x=FILE_X; }
+    if (switch2TakeTap(&tx,&ty) && browserHasFocus()) {
+      if(tx>=SCREEN_WIDTH-160 && tx<SCREEN_WIDTH-SHELL_MARGIN_X && ty>=START_Y-FONT_Y_SPACE && ty<START_Y) { grid_view=!grid_view; if(grid_view) gridFocus(base_pos+rel_pos); }
+      else if(tx>=SHELL_MARGIN_X && tx<SCREEN_WIDTH-SHELL_MARGIN_X && ty>=START_Y) {
+        int row=grid_view ? (int)((ty-START_Y)/GRID_H)*GRID_COLS+(int)((tx-SHELL_MARGIN_X)/GRID_W) : (int)((ty-START_Y)/FONT_Y_SPACE);
+        if(row>=0 && row<(grid_view?GRID_COUNT:MAX_POSITION) && base_pos+row<file_list.length) { rel_pos=row; scroll_count=0; scroll_x=FILE_X; }
+      }
     }
 #endif
 
@@ -984,6 +1051,9 @@ int browserMain() {
         setFocusOnFilename(focus_name);
     }
 
+ #ifdef __SWITCH2__
+    if(grid_view) gridFocus(base_pos+rel_pos);
+#endif
     // Start drawing
     startDrawing(bg_browser_image);
 
@@ -1004,9 +1074,13 @@ int browserMain() {
       pgf_draw_text(FILE_X, hy, DATE_TIME_COLOR, "Name");
       const char *size_label = dir_level == 0 ? "Used / Capacity" : "Size / Type";
       pgf_draw_text(ALIGN_RIGHT(INFORMATION_X, pgf_text_width(size_label)), hy, DATE_TIME_COLOR, size_label);
-      pgf_draw_text(ALIGN_RIGHT(SCREEN_WIDTH - SHELL_MARGIN_X, pgf_text_width("Modified")), hy, DATE_TIME_COLOR, "Modified");
+      if(!grid_view) pgf_draw_text(ALIGN_RIGHT(SCREEN_WIDTH - 175, pgf_text_width("Modified")), hy, DATE_TIME_COLOR, "Modified");
       }
     }
+#endif
+ #ifdef __SWITCH2__
+    vita2d_draw_rectangle(SCREEN_WIDTH-155,START_Y-FONT_Y_SPACE,135,FONT_Y_SPACE,0xFF39332D);
+    pgf_draw_text(SCREEN_WIDTH-148,START_Y-FONT_Y_SPACE,FOCUS_COLOR,grid_view?"Grid / List":"List / Grid");
 #endif
     drawScrollBar(base_pos, file_list.length);
 #ifdef __SWITCH2__
@@ -1015,6 +1089,10 @@ int browserMain() {
 #endif
 
     // Draw
+#ifdef __SWITCH2__
+    if(grid_view) drawGrid(); else
+#endif
+    {
     FileListEntry *file_entry = fileListGetNthEntry(&file_list, base_pos);
     if (file_entry) {
       int i;
@@ -1084,8 +1162,11 @@ int browserMain() {
         }
 #endif
         // Draw icon
-        if (icon)
-          vita2d_draw_texture(icon, SHELL_MARGIN_X, y + 3.0f);
+#ifdef __SWITCH2__
+        drawModernIcon(file_entry,SHELL_MARGIN_X,y+2,22);
+#else
+        if (icon) vita2d_draw_texture(icon,SHELL_MARGIN_X,y+3.0f);
+#endif
 
         // Current position
         if (i == rel_pos)
@@ -1186,6 +1267,7 @@ int browserMain() {
       }
     }
 
+    }
     // Draw
     drawSettingsMenu();
     drawContextMenu();
