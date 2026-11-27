@@ -2317,12 +2317,18 @@ ftp_loop(void)
     /* wifi got disabled */
     if(errno == ENETDOWN)
       return LOOP_RESTART;
+    if(errno == EINTR)
+      return LOOP_CONTINUE;
 
     console_print(RED "poll: %d %s\n" RESET, errno, strerror(errno));
     return LOOP_EXIT;
   }
   else if(rc > 0)
   {
+#ifdef __SWITCH2__
+    if(pollinfo.revents & (POLLERR|POLLHUP|POLLNVAL))
+      return LOOP_RESTART;
+#endif
     if(pollinfo.revents & POLLIN)
     {
       /* we got a new client */
