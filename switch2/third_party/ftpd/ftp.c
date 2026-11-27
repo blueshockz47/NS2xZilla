@@ -40,6 +40,9 @@
 #define BIT(x) (1<<(x))
 #endif
 #include "console.h"
+#ifdef __SWITCH2__
+#include <ftpvita.h>
+#endif
 
 #define POLL_UNKNOWN    (~(POLLIN|POLLPRI|POLLOUT))
 
@@ -1328,6 +1331,9 @@ ftp_session_destroy(ftp_session_t *session)
   }
 
   /* deallocate */
+#ifdef __SWITCH2__
+  ftpvita_metrics_client(-1);
+#endif
   free(session);
 
   return next;
@@ -1410,6 +1416,9 @@ ftp_session_new(int listen_fd)
     sessions->prev       = session;
   }
 
+#ifdef __SWITCH2__
+  ftpvita_metrics_client(1);
+#endif
   /* copy socket address to pasv address */
   addrlen = sizeof(session->pasv_addr);
   rc = getsockname(new_fd, (struct sockaddr*)&session->pasv_addr, &addrlen);
@@ -2664,6 +2673,9 @@ list_transfer(ftp_session_t *session)
   }
 
   /* we can try to send more data */
+#ifdef __SWITCH2__
+  ftpvita_metrics_bytes((uint64_t)rc, 0);
+#endif
   session->bufferpos += rc;
   return LOOP_CONTINUE;
 }
@@ -2784,6 +2796,9 @@ store_transfer(ftp_session_t *session)
   }
 
   /* we can try to receive more data */
+#ifdef __SWITCH2__
+  ftpvita_metrics_bytes((uint64_t)rc, 1);
+#endif
   session->bufferpos += rc;
   return LOOP_CONTINUE;
 }
