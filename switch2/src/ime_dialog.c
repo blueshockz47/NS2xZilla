@@ -60,12 +60,12 @@ static void customKey(int k){
   else if(k==44)custom_result=IME_DIALOG_RESULT_CANCELED;
   else if(k==45)custom_result=IME_DIALOG_RESULT_FINISHED;
 }
-static float keyboardY(void){return SCREEN_HEIGHT-370;}
+static float keyboardY(void){return SCREEN_HEIGHT-480;}
 void switch2KeyboardInput(int gesture,float x,float y){
   if(!custom_ime||custom_result)return;
   float top=keyboardY(),w=(SCREEN_WIDTH-20)/10.0f;
-  if(gesture==1&&x>=10&&x<SCREEN_WIDTH-10&&y>=top+95&&y<top+287){int k=(int)((y-top-95)/48)*10+(int)((x-10)/w);custom_focus=k;customKey(k);}
-  else if(gesture==1&&x>=10&&x<SCREEN_WIDTH-10&&y>=top+287&&y<top+345){int k=40+(int)((x-10)/((SCREEN_WIDTH-20)/6.0f));custom_focus=k;customKey(k);}
+  if(gesture==1&&x>=10&&x<SCREEN_WIDTH-10&&y>=top+110&&y<top+382){int k=(int)((y-top-95)/68)*10+(int)((x-10)/w);custom_focus=k;customKey(k);}
+  else if(gesture==1&&x>=10&&x<SCREEN_WIDTH-10&&y>=top+287&&y<top+460){int k=40+(int)((x-10)/((SCREEN_WIDTH-20)/6.0f));custom_focus=k;customKey(k);}
   if(pressed_pad[PAD_LEFT])custom_focus=(custom_focus+45)%46;
   if(pressed_pad[PAD_RIGHT])custom_focus=(custom_focus+1)%46;
   if(pressed_pad[PAD_UP])custom_focus=custom_focus>=10?custom_focus-10:custom_focus;
@@ -78,20 +78,20 @@ void switch2DrawKeyboard(void){
   if(!custom_ime)return;
   float top=keyboardY(),w=(SCREEN_WIDTH-20)/10.0f;
   vita2d_draw_rectangle(0,0,SCREEN_WIDTH,SCREEN_HEIGHT,0x99000000);
-  vita2d_draw_rectangle(0,top,SCREEN_WIDTH,370,BACKGROUND_COLOR);
+  vita2d_draw_rectangle(0,top,SCREEN_WIDTH,480,BACKGROUND_COLOR);
   pgf_draw_text(12,top+8,FOLDER_COLOR,custom_title);
-  vita2d_draw_rectangle(10,top+38,SCREEN_WIDTH-20,44,CONTROL_HINTS_BAR_COLOR);
-  vita2d_enable_clipping();vita2d_set_clip_rectangle(14,top+38,SCREEN_WIDTH-14,top+82);
-  pgf_draw_text(16,top+48,0xffffffff,custom_text);vita2d_disable_clipping();
+  vita2d_draw_rectangle(10,top+38,SCREEN_WIDTH-20,60,CONTROL_HINTS_BAR_COLOR);
+  vita2d_enable_clipping();vita2d_set_clip_rectangle(14,top+38,SCREEN_WIDTH-14,top+98);
+  pgf_draw_text(16,top+55,0xffffffff,custom_text);vita2d_disable_clipping();
   const char *p=key_pages[custom_page];
   for(int k=0;k<46;k++){
     float kw=k<40?w:(SCREEN_WIDTH-20)/6.0f;
-    float x=10+(k<40?k%10:k-40)*kw,y=top+(k<40?95+k/10*48:287);
+    float x=10+(k<40?k%10:k-40)*kw,y=top+(k<40?110+k/10*68:382);
     char ch[2]={k<40&&k<(int)strlen(p)?p[k]:' ',0};
     const char *actions[]={"Mode","Space","Del","Clear","Cancel","OK"};
     const char *label=k<40?ch:actions[k-40];
-    vita2d_draw_rectangle(x+2,y+2,kw-4,44,k==custom_focus?FOLDER_COLOR:CONTROL_HINTS_BAR_COLOR);
-    pgf_draw_text(x+(kw-pgf_text_width(label))/2,y+11,0xffffffff,label);
+    vita2d_draw_rectangle(x+2,y+2,kw-4,k<40?64:72,k==44?0xff4040dc:k==45?0xff45a622:k==custom_focus?FOLDER_COLOR:CONTROL_HINTS_BAR_COLOR);
+    pgf_draw_text(x+(kw-pgf_text_width(label))/2,y+20,0xffffffff,label);
   }
 }
 
