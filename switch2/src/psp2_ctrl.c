@@ -67,13 +67,11 @@ typedef struct {
 static const ButtonMapping button_mappings[] = {
   { SWITCH_BUTTON_A,      SCE_CTRL_CIRCLE },
   { SWITCH_BUTTON_B,      SCE_CTRL_CROSS },
-  { SWITCH_BUTTON_X,      SCE_CTRL_TRIANGLE },
-  { SWITCH_BUTTON_Y,      SCE_CTRL_SQUARE },
   { SWITCH_BUTTON_LSTICK, SCE_CTRL_L3 },
-  { SWITCH_BUTTON_RSTICK, SCE_CTRL_R3 },
-  { SWITCH_BUTTON_L,      SCE_CTRL_LTRIGGER },
-  { SWITCH_BUTTON_R,      SCE_CTRL_RTRIGGER },
-  { SWITCH_BUTTON_PLUS,   SCE_CTRL_START },
+  { SWITCH_BUTTON_RSTICK, SCE_CTRL_START },
+  { SWITCH_BUTTON_L,      SCE_CTRL_SQUARE },
+  { SWITCH_BUTTON_R,      SCE_CTRL_TRIANGLE },
+  { SWITCH_BUTTON_PLUS,   SCE_CTRL_R3 },
   { SWITCH_BUTTON_MINUS,  SCE_CTRL_SELECT },
   { SWITCH_BUTTON_DLEFT,  SCE_CTRL_LEFT },
   { SWITCH_BUTTON_DUP,    SCE_CTRL_UP },
@@ -273,6 +271,8 @@ int sceCtrlPeekBufferPositive(int port, SceCtrlData *pad_data, int count) {
   pad_data->ly = axisToVita(strongestAxis(1));
   pad_data->rx = axisToVita(strongestAxis(2));
   pad_data->ry = axisToVita(strongestAxis(3));
+  int lx=(int)pad_data->lx-128,ly=(int)pad_data->ly-128,rx=(int)pad_data->rx-128,ry=(int)pad_data->ry-128;
+  if(abs(rx)+abs(ry)>abs(lx)+abs(ly)){pad_data->lx=pad_data->rx;pad_data->ly=pad_data->ry;}
   int o=switch2EffectiveOrientation();
   for(int j=0;j<o;j++) {
     unsigned char x=pad_data->lx,y=pad_data->ly;
