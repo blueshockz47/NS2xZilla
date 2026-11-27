@@ -42,6 +42,6 @@ jobs:
           test -s build/switch2/NS2xZilla.nro
       - uses: actions/upload-artifact@v4
         with:
-          name: NS2xZilla-v1.0.0-RC28
+          name: NS2xZilla-v1.0.0-RC29
           path: build/switch2/NS2xZilla.nro
           if-no-files-found: error
