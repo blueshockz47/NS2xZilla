@@ -1,3 +1,11 @@
+# OunceShell Pro
+
+An independent GPL-3.0 fork of [OunceShell by kurumuz](https://github.com/kurumuz/ounceshell), itself a Switch 2 port of VitaShell by TheFloW. Includes ftpd by mtheall. This release candidate focuses on FTP interoperability, diagnostics, recovery and file management. Hardware validation is pending; use a trusted isolated network because FTP is unencrypted.
+
+Build: `make -f switch2/Makefile` using [ounce-devkit](https://github.com/ouncebrew/ounce-devkit). Output: `build/switch2/ounceshell-pro.nro`.
+
+See [SwitchNest integration](docs/SWITCHNEST-INTEGRATION.md) and [release candidate tests](docs/RC-TESTS.md). Original upstream documentation follows.
+
 # OunceShell
 
 OunceShell is VitaShell ported to the Switch 2 as homebrew: a file manager
