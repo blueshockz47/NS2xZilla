@@ -204,7 +204,7 @@ void drawShellInfo(const char *path) {
      arbitrary-length path into fixed-size buffers. */
   vita2d_enable_clipping();
   vita2d_set_clip_rectangle(SHELL_MARGIN_X,PATH_Y,SCREEN_WIDTH-SHELL_MARGIN_X,PATH_Y+FONT_Y_SPACE);
-  pgf_draw_text(SHELL_MARGIN_X,PATH_Y,PATH_COLOR,path ? path : "");
+  if(path) pgf_draw_text(SHELL_MARGIN_X,PATH_Y,PATH_COLOR,path);
   vita2d_disable_clipping();
 #else
   // TODO: make this more elegant
