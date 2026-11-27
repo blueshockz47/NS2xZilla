@@ -1,4 +1,4 @@
-name: Build OunceShell Pro
+name: Build NS2xZilla
 on:
   push:
     branches: [development]
@@ -39,9 +39,9 @@ jobs:
       - name: Compile
         run: |
           docker run --rm -v "$PWD:/src" -w /src ounce-devkit make -f switch2/Makefile -j2
-          test -s build/switch2/ounceshell-pro.nro
+          test -s build/switch2/NS2xZilla.nro
       - uses: actions/upload-artifact@v4
         with:
-          name: OunceShell-Pro-v1.0.0-RC21
-          path: build/switch2/ounceshell-pro.nro
+          name: NS2xZilla-v1.0.0-RC22
+          path: build/switch2/NS2xZilla.nro
           if-no-files-found: error
