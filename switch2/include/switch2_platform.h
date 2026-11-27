@@ -55,6 +55,9 @@ void switch2RequestExit(void);
 
 extern int switch2_orientation;
 int switch2EffectiveOrientation(void);
+int switch2Portrait(void);
+int switch2ScreenWidth(void);
+int switch2ScreenHeight(void);
 int switch2MapTouch(float nx,float ny,float *x,float *y);
 void switch2CtrlInit(void);
 void switch2CtrlExit(void);
