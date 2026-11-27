@@ -114,7 +114,7 @@ void drawShellInfo(const char *path) {
 #ifdef __SWITCH2__
   // Modified for Switch 2: the port is named OunceShell.
   (void)version;
-  pgf_draw_text(SHELL_MARGIN_X, SHELL_MARGIN_Y, TITLE_COLOR, "OunceShell Pro");
+  pgf_draw_text(SHELL_MARGIN_X, SHELL_MARGIN_Y, TITLE_COLOR, "NS2xZilla");
 #else
   pgf_draw_textf(SHELL_MARGIN_X, SHELL_MARGIN_Y, TITLE_COLOR, "VitaShell %s", version);
 #endif
