@@ -986,10 +986,18 @@ int browserMain() {
     // Keep the second path line available for long paths.
     if (pgf_text_width(file_list.path) < MAX_WIDTH && strlen(file_list.path) < 255) {
       float hy = START_Y - FONT_Y_SPACE;
+      if (ftpvita_is_initialized()) {
+        unsigned clients; uint64_t up, down;
+        ftpvita_metrics_snapshot(&clients, &up, &down);
+        char status[128];
+        snprintf(status, sizeof(status), "FTP | %u clients | UP %.1f MB | DOWN %.1f MB", clients, (double)up / 1048576.0, (double)down / 1048576.0);
+        if (pgf_text_width(status) < MAX_WIDTH) pgf_draw_text(FILE_X, hy, DATE_TIME_COLOR, status);
+      } else {
       pgf_draw_text(FILE_X, hy, DATE_TIME_COLOR, "Name");
       const char *size_label = dir_level == 0 ? "Used / Capacity" : "Size / Type";
       pgf_draw_text(ALIGN_RIGHT(INFORMATION_X, pgf_text_width(size_label)), hy, DATE_TIME_COLOR, size_label);
       pgf_draw_text(ALIGN_RIGHT(SCREEN_WIDTH - SHELL_MARGIN_X, pgf_text_width("Modified")), hy, DATE_TIME_COLOR, "Modified");
+      }
     }
 #endif
     drawScrollBar(base_pos, file_list.length);
