@@ -72,7 +72,7 @@ static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 static void log_event(const char *format, ...) {
   int saved_errno = errno;
   pthread_mutex_lock(&log_lock);
-  const char *path = "sdmc:/switch/ounceshell-pro/ftp-diagnostics.log";
+  const char *path = "sdmc:/switch/NS2xZilla/ftp-diagnostics.log";
   FILE *fp = fopen(path, "a+");
   if (fp) {
     if (fseek(fp, 0, SEEK_END) == 0 && ftell(fp) >= 512 * 1024) {
