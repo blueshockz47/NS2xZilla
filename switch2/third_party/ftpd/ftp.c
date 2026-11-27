@@ -177,6 +177,7 @@ struct ftp_session_t
   int                  cmd_fd;     /*!< socket for command connection */
   int                  pasv_fd;    /*!< listen socket for PASV */
   int                  data_fd;    /*!< socket for data transfer */
+  uint64_t             idle_since;
   time_t               timestamp;  /*!< time from last command */
   session_flags_t      flags;      /*!< session flags */
   xfer_dir_mode_t      dir_mode;   /*!< dir transfer mode */
@@ -1366,6 +1367,14 @@ ftp_session_destroy(ftp_session_t *session)
  *
  *  @param[in] listen_fd socket to accept connection from
  */
+#ifdef __SWITCH2__
+static uint64_t ftp_monotonic_seconds(void)
+{
+  struct timespec ts;
+  return clock_gettime(CLOCK_MONOTONIC, &ts) == 0 ? (uint64_t)ts.tv_sec + 1 : 0;
+}
+#endif
+
 static void
 ftp_session_new(int listen_fd)
 {
@@ -1425,6 +1434,9 @@ ftp_session_new(int listen_fd)
                       | SESSION_MLST_MODIFY
                       | SESSION_MLST_PERM;
   session->state      = COMMAND_STATE;
+#ifdef __SWITCH2__
+  session->idle_since = ftp_monotonic_seconds();
+#endif
 
   /* link to the sessions list */
   if(sessions == NULL)
@@ -1829,6 +1841,17 @@ ftp_session_poll(ftp_session_t *session)
   struct pollfd pollinfo[2];
   nfds_t        nfds = 1;
 
+  /* Expire abandoned control sessions, never active transfers. */
+#ifdef __SWITCH2__
+  uint64_t now = ftp_monotonic_seconds();
+  if(session->state != COMMAND_STATE || !session->idle_since || now < session->idle_since)
+    session->idle_since = now;
+  if(now && session->idle_since && now - session->idle_since >= 300 && session->state == COMMAND_STATE) {
+    ftp_send_response(session,421,"Idle timeout, reconnect\r\n");
+    console_print(YELLOW "FTP idle timeout\n" RESET);
+    return ftp_session_destroy(session);
+  }
+#endif
   /* the first pollfd is the command socket */
   pollinfo[0].fd      = session->cmd_fd;
   pollinfo[0].events  = POLLIN | POLLPRI;
@@ -1883,6 +1906,9 @@ ftp_session_poll(ftp_session_t *session)
     if(pollinfo[0].revents != 0)
     {
       /* handle command */
+#ifdef __SWITCH2__
+      session->idle_since = ftp_monotonic_seconds();
+#endif
       if(pollinfo[0].revents & POLL_UNKNOWN)
         console_print(YELLOW "cmd_fd: revents=0x%08X\n" RESET, pollinfo[0].revents);
 
@@ -2717,9 +2743,7 @@ list_transfer(ftp_session_t *session)
   }
 
   /* we can try to send more data */
-#ifdef __SWITCH2__
-  ftpvita_metrics_bytes((uint64_t)rc, 0);
-#endif
+
   session->bufferpos += rc;
   return LOOP_CONTINUE;
 }
