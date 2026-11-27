@@ -54,6 +54,11 @@ static pthread_t server_thread;
 static int server_thread_started;
 static atomic_int stop_requested;
 static atomic_int serving;
+static atomic_int recovering;
+static _Atomic uint64_t started_at;
+static uint64_t monotonic_seconds(void) { struct timespec t; return clock_gettime(CLOCK_MONOTONIC, &t) == 0 ? (uint64_t)t.tv_sec : 0; }
+int ftpvita_is_recovering(void) { return atomic_load(&recovering); }
+unsigned ftpvita_uptime(void) { uint64_t now = monotonic_seconds(), start = atomic_load(&started_at); return now >= start && start ? (unsigned)(now-start) : 0; }
 static atomic_uint clients;
 static _Atomic uint64_t uploaded, downloaded;
 void ftpvita_metrics_client(int delta) { if(delta > 0) atomic_fetch_add(&clients, 1); else atomic_fetch_sub(&clients, 1); }
@@ -94,6 +99,7 @@ static void sleepFor(time_t seconds, long nanoseconds) {
 static void *serve(void *argument) {
   (void)argument;
 
+  int initialized = 1;
   while (!stop_requested) {
     loop_status_t status = ftp_loop();
 
@@ -105,11 +111,17 @@ static void *serve(void *argument) {
     if (status == LOOP_RESTART) {
       log_event("Network restart requested");
       // The network went down: start again once it is back.
+      recovering = 1;
       ftp_exit();
-      while (!stop_requested && ftp_init() != 0) {
+      initialized = 0;
+      unsigned delay = RESTART_INTERVAL_S;
+      while (!stop_requested) {
+        if (ftp_init() == 0) { initialized = 1; break; }
         log_event("FTP restart failed; retrying");
-        sleepFor(RESTART_INTERVAL_S, 0);
+        for (unsigned tick = 0; tick < delay * 10 && !stop_requested; ++tick) sleepFor(0, 100000000L);
+        if (delay < 8) delay *= 2;
       }
+      recovering = 0;
       if (stop_requested)
         break;
       log_event("FTP restarted");
@@ -119,7 +131,8 @@ static void *serve(void *argument) {
     sleepFor(0, LOOP_INTERVAL_NS);
   }
 
-  ftp_exit();
+  if (initialized) ftp_exit();
+  recovering = 0;
   serving = 0;
   log_event("FTP thread stopped");
   return NULL;
@@ -161,6 +174,8 @@ int ftpvita_init(char *vita_ip, unsigned short int *vita_port) {
   atomic_store(&clients, 0);
   atomic_store(&uploaded, 0);
   atomic_store(&downloaded, 0);
+  recovering = 0;
+  atomic_store(&started_at, monotonic_seconds());
   stop_requested = 0;
   serving = 1;
   if (pthread_create(&server_thread, NULL, serve, NULL) != 0) {
