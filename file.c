@@ -794,12 +794,12 @@ void fileListAddEntry(FileList *list, FileListEntry *entry, int sort) {
       FileListEntry *previous = NULL;
 
       char entry_name[MAX_NAME_LENGTH];
-      strcpy(entry_name, entry->name);
+      snprintf(entry_name, sizeof(entry_name), "%s", entry->name);
       removeEndSlash(entry_name);
 
       while (p) {
         char p_name[MAX_NAME_LENGTH];
-        strcpy(p_name, p->name);
+        snprintf(p_name, sizeof(p_name), "%s", p->name);
         removeEndSlash(p_name);
 
         // '..' is always at first
@@ -941,6 +941,8 @@ int fileListRemoveEntryByName(FileList *list, const char *name) {
       } else {
         list->head = entry->next;
       }
+
+      if (entry->next) entry->next->previous = previous;
 
       if (list->tail == entry) {
         list->tail = previous;
