@@ -158,6 +158,7 @@ int switch2TakeTap(float *x, float *y) {
 }
 void switch2PumpEvents(void) {
   SDL_Event event;
+  tap_pending=0;
   while (SDL_PollEvent(&event)) {
     switch (event.type) {
       case SDL_FINGERDOWN:
