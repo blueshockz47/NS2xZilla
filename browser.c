@@ -934,6 +934,13 @@ int browserMain() {
 #endif
 
     int refresh = REFRESH_MODE_NONE;
+#ifdef __SWITCH2__
+    float tx, ty;
+    if (switch2TakeTap(&tx, &ty) && browserHasFocus() && tx >= SHELL_MARGIN_X && tx < SCREEN_WIDTH-SHELL_MARGIN_X && ty >= START_Y && ty < START_Y+MAX_ENTRIES*FONT_Y_SPACE) {
+      int row = (int)((ty-START_Y)/FONT_Y_SPACE);
+      if (row < MAX_POSITION && base_pos+row < file_list.length) { rel_pos=row; scroll_count=0; scroll_x=FILE_X; }
+    }
+#endif
 
     // Control
     if (getDialogStep() != DIALOG_STEP_NONE) {
@@ -1072,8 +1079,8 @@ int browserMain() {
 #ifdef __SWITCH2__
         // A subtle full-row focus background, independent of file type.
         if (i == rel_pos) {
-          vita2d_draw_rectangle(SHELL_MARGIN_X - 4.0f, y, MARK_WIDTH + 8.0f, FONT_Y_SPACE, 0x303C9AD0);
-          vita2d_draw_rectangle(SHELL_MARGIN_X - 4.0f, y, 3.0f, FONT_Y_SPACE, 0xFFD0A040);
+          vita2d_draw_rectangle(SHELL_MARGIN_X - 4.0f, y, MARK_WIDTH + 8.0f, FONT_Y_SPACE, 0x503E79B0);
+          vita2d_draw_rectangle(SHELL_MARGIN_X - 4.0f, y, 3.0f, FONT_Y_SPACE, 0xFFFFB568);
         }
 #endif
         // Draw icon
