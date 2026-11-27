@@ -57,6 +57,15 @@ Resume and retry behavior also depends on the client. Verify important transfers
 
 Inherited from OunceShell: archive browsing, text and hex editing, image viewing and audio playback. Format compatibility and individual viewer behavior may vary on Switch 2; these inherited tools have not all been independently regression-tested in this fork.
 
+## Screenshots
+
+<table>
+  <tr><td><img src="https://raw.githubusercontent.com/blueshockz47/ounceshell-pro/master/IMG_8081.jpeg" width="100%" alt="NS2xZilla screenshot 1"></td><td><img src="https://raw.githubusercontent.com/blueshockz47/ounceshell-pro/master/IMG_8082.jpeg" width="100%" alt="NS2xZilla screenshot 2"></td></tr>
+  <tr><td><img src="https://raw.githubusercontent.com/blueshockz47/ounceshell-pro/master/IMG_8083.jpeg" width="100%" alt="NS2xZilla screenshot 3"></td><td><img src="https://raw.githubusercontent.com/blueshockz47/ounceshell-pro/master/IMG_8084.jpeg" width="100%" alt="NS2xZilla screenshot 4"></td></tr>
+  <tr><td><img src="https://raw.githubusercontent.com/blueshockz47/ounceshell-pro/master/IMG_8085.jpeg" width="100%" alt="NS2xZilla screenshot 5"></td><td><img src="https://raw.githubusercontent.com/blueshockz47/ounceshell-pro/master/IMG_8086.jpeg" width="100%" alt="NS2xZilla screenshot 6"></td></tr>
+  <tr><td colspan="2" align="center"><img src="https://raw.githubusercontent.com/blueshockz47/ounceshell-pro/master/IMG_8087.jpeg" width="50%" alt="NS2xZilla screenshot 7"></td></tr>
+</table>
+
 ## Quick start
 
 1. Download and extract the ZIP.
