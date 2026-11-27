@@ -40,12 +40,8 @@ jobs:
         run: |
           docker run --rm -v "$PWD:/src" -w /src ounce-devkit make -f switch2/Makefile -j2
           test -s build/switch2/NS2xZilla.nro
-      - name: Package license and executable
-        run: |
-          mkdir -p release
-          cp build/switch2/NS2xZilla.nro LICENSE README.md release/
       - uses: actions/upload-artifact@v4
         with:
           name: NS2xZilla-v1.0.0-Stable
-          path: release/
+          path: build/switch2/NS2xZilla.nro
           if-no-files-found: error
