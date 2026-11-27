@@ -283,13 +283,20 @@ int getSettingsMenuStatus() {
 }
 
 #ifdef __SWITCH2__
+extern const char *switch2ThemeName(int);
+extern unsigned int switch2ThemeColor(int);
+extern int switch2ThemeIndex(void);
+extern void switch2SetTheme(int);
+static int theme_page,theme_focus,settings_focus;
 static float settingsPanelX(void){return 24.0f;}
-static float settingsPanelY(void){return (SCREEN_HEIGHT-220.0f)/2;}
+static float settingsPanelY(void){return (SCREEN_HEIGHT-(theme_page?340.0f:220.0f))/2;}
 void settingsMenuTap(float tx,float ty){
   if(settings_menu.status!=SETTINGS_MENU_OPENED && settings_menu.status!=SETTINGS_MENU_OPENING) return;
   float x=settingsPanelX(),y=settingsPanelY();
-  if(tx<x||tx>SCREEN_WIDTH-x||ty<y||ty>y+220){closeSettingsMenu();return;}
-  if(ty>=y+125&&ty<y+185) exitShell();
+  if(tx<x||tx>SCREEN_WIDTH-x||ty<y||ty>y+(theme_page?340:220)){closeSettingsMenu();return;}
+  if(theme_page){if(ty>=y+45&&ty<y+285){int col=tx<SCREEN_WIDTH/2?0:1;int row=(int)((ty-y-45)/60);theme_focus=row*2+col;switch2SetTheme(theme_focus);}else if(ty>=y+290)theme_page=0;}
+  else if(ty>=y+45&&ty<y+105){theme_page=1;theme_focus=switch2ThemeIndex();}
+  else if(ty>=y+110&&ty<y+165)exitShell();
 }
 #endif
 void drawSettingsMenu() {
@@ -318,13 +325,11 @@ void drawSettingsMenu() {
 #ifdef __SWITCH2__
   vita2d_draw_rectangle(0,0,SCREEN_WIDTH,SCREEN_HEIGHT,0x99000000);
   float px=settingsPanelX(),py=settingsPanelY();
-  vita2d_draw_rectangle(px,py,SCREEN_WIDTH-2*px,220,SETTINGS_MENU_COLOR);
-  pgf_draw_text((SCREEN_WIDTH-pgf_text_width("Settings"))/2,py+12,SETTINGS_MENU_TITLE_COLOR,"Settings");
-  pgf_draw_text((SCREEN_WIDTH-pgf_text_width("Quick Theme Change"))/2,py+48,SETTINGS_MENU_OPTION_COLOR,"Quick Theme Change");
-  pgf_draw_text((SCREEN_WIDTH-pgf_text_width("Tap the theme name in File Manager"))/2,py+76,SETTINGS_MENU_ITEM_COLOR,"Tap the theme name in File Manager");
-  pgf_draw_text((SCREEN_WIDTH-pgf_text_width("to change themes instantly."))/2,py+98,SETTINGS_MENU_ITEM_COLOR,"to change themes instantly.");
-  vita2d_draw_rectangle(px+8,py+125,SCREEN_WIDTH-2*px-16,60,SETTINGS_MENU_FOCUS_COLOR);
-  pgf_draw_text((SCREEN_WIDTH-pgf_text_width("Exit NS2xZilla"))/2,py+142,SETTINGS_MENU_ITEM_COLOR,"Exit NS2xZilla");
+  vita2d_draw_rectangle(px,py,SCREEN_WIDTH-2*px,theme_page?340:220,SETTINGS_MENU_COLOR);
+  pgf_draw_text(px+12,py+12,SETTINGS_MENU_TITLE_COLOR,theme_page?"Vivid UI Themes":"Settings");
+  if(theme_page){float w=(SCREEN_WIDTH-2*px-24)/2;for(int i=0;i<8;i++){float x=px+8+(i%2)*(w+8),y=py+45+(i/2)*60;vita2d_draw_rectangle(x,y,w,54,i==theme_focus?switch2ThemeColor(i):SETTINGS_MENU_FOCUS_COLOR);vita2d_draw_rectangle(x+3,y+3,w-6,48,SETTINGS_MENU_COLOR);vita2d_draw_rectangle(x+10,y+12,24,24,switch2ThemeColor(i));pgf_draw_text(x+42,y+14,0xffffffff,switch2ThemeName(i));if(i==switch2ThemeIndex())pgf_draw_text(x+w-24,y+14,0xffffffff,"*");}}
+  else {for(int i=0;i<2;i++){float y=py+45+i*65;vita2d_draw_rectangle(px+8,y,SCREEN_WIDTH-2*px-16,55,i==settings_focus?SETTINGS_MENU_FOCUS_COLOR:SETTINGS_MENU_COLOR);pgf_draw_text(px+20,y+6,0xffffffff,i?"Exit NS2xZilla":"Vivid UI Themes");if(!i)pgf_draw_text(px+20,y+29,SETTINGS_MENU_OPTION_COLOR,switch2ThemeName(switch2ThemeIndex()));}}
+  float fy=py+(theme_page?300:180);vita2d_draw_rectangle(px+12,fy,25,25,0xff45a622);pgf_draw_text(px+18,fy,0xffffffff,"A");pgf_draw_text(px+45,fy,0xffffffff,"Open / Select");vita2d_draw_rectangle(SCREEN_WIDTH/2+12,fy,25,25,0xff4040dc);pgf_draw_text(SCREEN_WIDTH/2+18,fy,0xffffffff,"B");pgf_draw_text(SCREEN_WIDTH/2+45,fy,0xffffffff,"Back");
   return;
 #else
   vita2d_draw_texture(settings_image, 0.0f, SCREEN_HEIGHT - settings_menu.cur_pos);
@@ -398,8 +403,9 @@ void settingsDisagree() {
 
 void settingsMenuCtrl() {
 #ifdef __SWITCH2__
-  if(pressed_pad[PAD_START]||pressed_pad[PAD_CANCEL])closeSettingsMenu();
-  else if(pressed_pad[PAD_ENTER])exitShell();
+  if(pressed_pad[PAD_START]||pressed_pad[PAD_CANCEL]){if(theme_page)theme_page=0;else closeSettingsMenu();}
+  else if(theme_page){if(pressed_pad[PAD_LEFT])theme_focus=MAX(0,theme_focus-1);if(pressed_pad[PAD_RIGHT])theme_focus=MIN(7,theme_focus+1);if(pressed_pad[PAD_UP])theme_focus=MAX(0,theme_focus-2);if(pressed_pad[PAD_DOWN])theme_focus=MIN(7,theme_focus+2);if(pressed_pad[PAD_ENTER])switch2SetTheme(theme_focus);}
+  else {if(pressed_pad[PAD_UP]||pressed_pad[PAD_DOWN])settings_focus=1-settings_focus;if(pressed_pad[PAD_ENTER]){if(settings_focus)exitShell();else{theme_page=1;theme_focus=switch2ThemeIndex();}}}
   return;
 #endif
   SettingsMenuOption *option = &settings_menu_entries[settings_menu.entry_sel].options[settings_menu.option_sel];
