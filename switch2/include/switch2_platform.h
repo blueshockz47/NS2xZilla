@@ -53,6 +53,9 @@ void switch2RequestExit(void);
 
 /* Controls (psp2_ctrl.c) */
 
+extern int switch2_orientation;
+int switch2EffectiveOrientation(void);
+int switch2MapTouch(float nx,float ny,float *x,float *y);
 void switch2CtrlInit(void);
 void switch2CtrlExit(void);
 
