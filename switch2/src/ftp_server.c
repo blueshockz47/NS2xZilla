@@ -60,8 +60,10 @@ static uint64_t monotonic_seconds(void) { struct timespec t; return clock_gettim
 int ftpvita_is_recovering(void) { return atomic_load(&recovering); }
 unsigned ftpvita_uptime(void) { uint64_t now = monotonic_seconds(), start = atomic_load(&started_at); return now >= start && start ? (unsigned)(now-start) : 0; }
 static atomic_uint clients;
-static _Atomic uint64_t uploaded, downloaded;
-void ftpvita_metrics_client(int delta) { if(delta > 0) atomic_fetch_add(&clients, 1); else atomic_fetch_sub(&clients, 1); }
+static _Atomic uint64_t uploaded, downloaded, up_rate, down_rate;
+static atomic_uint accepted_total, closed_total, restart_total, failure_total;
+void ftpvita_metrics_rates(uint64_t *up,uint64_t *down) { *up=atomic_load(&up_rate); *down=atomic_load(&down_rate); }
+void ftpvita_metrics_client(int delta) { if(delta > 0) { atomic_fetch_add(&clients, 1); atomic_fetch_add(&accepted_total,1); } else { atomic_fetch_sub(&clients, 1); atomic_fetch_add(&closed_total,1); } }
 void ftpvita_metrics_bytes(uint64_t bytes, int upload) { if(upload) atomic_fetch_add(&uploaded, bytes); else atomic_fetch_add(&downloaded, bytes); }
 void ftpvita_metrics_snapshot(unsigned *count, uint64_t *up, uint64_t *down) { *count = atomic_load(&clients); *up = atomic_load(&uploaded); *down = atomic_load(&downloaded); }
 
@@ -100,8 +102,11 @@ static void *serve(void *argument) {
   (void)argument;
 
   int initialized = 1;
+  uint64_t sample=monotonic_seconds(), last_up=0,last_down=0;
   while (!stop_requested) {
     loop_status_t status = ftp_loop();
+    uint64_t now=monotonic_seconds();
+    if(now>sample) { uint64_t u=atomic_load(&uploaded),d=atomic_load(&downloaded); atomic_store(&up_rate,(u-last_up)/(now-sample)); atomic_store(&down_rate,(d-last_down)/(now-sample)); last_up=u; last_down=d; sample=now; }
 
     if (status == LOOP_EXIT) {
       log_event("FTP loop exit");
@@ -109,6 +114,8 @@ static void *serve(void *argument) {
     }
 
     if (status == LOOP_RESTART) {
+      atomic_fetch_add(&restart_total,1);
+      atomic_store(&up_rate,0); atomic_store(&down_rate,0);
       log_event("Network restart requested");
       // The network went down: start again once it is back.
       recovering = 1;
@@ -134,6 +141,8 @@ static void *serve(void *argument) {
   if (initialized) ftp_exit();
   recovering = 0;
   serving = 0;
+  atomic_store(&up_rate,0); atomic_store(&down_rate,0);
+  log_event("FTP summary: accepted=%u closed=%u restarts=%u transfer_errors=%u upload_bytes=%llu download_bytes=%llu uptime_s=%u",atomic_load(&accepted_total),atomic_load(&closed_total),atomic_load(&restart_total),atomic_load(&failure_total),(unsigned long long)atomic_load(&uploaded),(unsigned long long)atomic_load(&downloaded),ftpvita_uptime());
   log_event("FTP thread stopped");
   return NULL;
 }
@@ -174,6 +183,8 @@ int ftpvita_init(char *vita_ip, unsigned short int *vita_port) {
   atomic_store(&clients, 0);
   atomic_store(&uploaded, 0);
   atomic_store(&downloaded, 0);
+  atomic_store(&up_rate,0); atomic_store(&down_rate,0);
+  atomic_store(&accepted_total,0); atomic_store(&closed_total,0); atomic_store(&restart_total,0); atomic_store(&failure_total,0);
   recovering = 0;
   atomic_store(&started_at, monotonic_seconds());
   stop_requested = 0;
@@ -209,12 +220,15 @@ void console_set_status(const char *format, ...) {
   (void)format;
 }
 
+void ftpvita_metrics_failure(void) { atomic_fetch_add(&failure_total,1); }
+
 void console_print(const char *format, ...) {
+  int saved_errno=errno;
   /* Log only known event formats; never log raw commands or replies. */
   if (strstr(format, "accepted connection") || strstr(format, "closing connection") ||
       strstr(format, "connected to") || strstr(format, "revents=") ||
       strstr(format, "errno") || strstr(format, ": %d %s") ||
-      strstr(format, "only sent") || strstr(format, "failed to allocate")) {
+      strstr(format, "only sent") || strstr(format, "failed to allocate") || strstr(format,"FTP idle timeout") || strstr(format,"FTP client limit reached")) {
     /* Format strings with file paths are excluded by the allowlist below. */
     if (strstr(format, "'%s'") || strstr(format, "%s %s")) return;
     char line[256];
@@ -223,6 +237,7 @@ void console_print(const char *format, ...) {
     vsnprintf(line, sizeof(line), format, args);
     va_end(args);
     log_event("%s", line);
+    errno=saved_errno;
   }
 }
 
