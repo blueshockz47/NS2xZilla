@@ -1054,7 +1054,7 @@ int browserMain() {
       if(gesture==1 && ty>=HINT_BAR_TOP+24 && tx>=0 && tx<SCREEN_WIDTH) { int slot=(int)(tx/(SCREEN_WIDTH/6.0f)); if(touch_select) { if(slot==5) { touch_select=0; fileListEmpty(&mark_list); } else if(slot==4) { fileListEmpty(&mark_list); for(FileListEntry *e=file_list.head;e;e=e->next) if(strcmp(e->name,DIR_UP)!=0 && dir_level>0) fileListAddEntry(&mark_list,fileListCopyEntry(e),SORT_NONE); } else if(mark_list.length>0 && dir_level>0) { setFocusOnFilename(mark_list.head->name); setContextMenuMainVisibilities(); int names[]={COPY,MOVE,RENAME,DELETE}; for(int j=0;j<context_menu_main.n_entries;j++) if(context_menu_main.entries[j].name==names[slot] && context_menu_main.entries[j].visibility==CTX_VISIBLE && (slot!=2 || mark_list.length==1)) { context_menu_main.callback(j,context_menu_main.context); if(slot<2) { touch_select=0; fileListEmpty(&mark_list); } break; } } } else if(copy_list.length>0 && slot==2) { if(dir_level>0 && !isInArchive() && file_list.length>0) { setContextMenuMainVisibilities(); for(int j=0;j<context_menu_main.n_entries;j++) if(context_menu_main.entries[j].name==PASTE && context_menu_main.entries[j].visibility==CTX_VISIBLE) { context_menu_main.callback(j,context_menu_main.context); break; } } } else if(copy_list.length>0 && slot==3) { fileListEmpty(&copy_list); } else { int keys[]={PAD_CANCEL,PAD_ENTER,PAD_SQUARE,PAD_TRIANGLE,PAD_START,PAD_SELECT}; if(copy_list.length>0 && slot<2) pressed_pad[slot==0?PAD_ENTER:PAD_CANCEL]=1; else if(slot==2) touch_select=1; else pressed_pad[keys[slot]]=1; } last_tap_pos=-1; }
       else if(gesture==1 && ty>=START_Y-FONT_Y_SPACE && ty<START_Y && tx>=SHELL_MARGIN_X && tx<180) { nextPalette(); }
       else if(gesture>=3) { int pos=base_pos+rel_pos+(gesture==3?1:-1)*(grid_view?GRID_COLS:4); if(grid_view) gridFocus(pos); else if(file_list.length>0) { pos=MAX(0,MIN(pos,file_list.length-1)); base_pos=MAX(0,MIN(pos,MAX(0,file_list.length-MAX_ENTRIES))); rel_pos=pos-base_pos; } last_tap_pos=-1; }
-      else if(gesture==1 && ty>=START_Y-FONT_Y_SPACE && ty<START_Y && tx>=SCREEN_WIDTH-340 && tx<SCREEN_WIDTH-220) { search_pending=initImeDialog("Find file", "", 30, 0, 0, 0)>=0; last_tap_pos=-1; }
+      else if(gesture==1 && ty>=START_Y-FONT_Y_SPACE && ty<START_Y && tx>=185 && tx<SCREEN_WIDTH-225) { if(tx>=SCREEN_WIDTH-265) { search_query[0]=0; search_found=0; } else search_pending=initImeDialog("Search files", search_query, 30, 0, 0, 0)>=0; last_tap_pos=-1; }
       else if(gesture==1 && tx>=SCREEN_WIDTH-220 && tx<SCREEN_WIDTH-SHELL_MARGIN_X && ty>=START_Y-FONT_Y_SPACE && ty<START_Y) { changeView(tx>=SCREEN_WIDTH-120); }
       else if(tx>=SHELL_MARGIN_X && tx<SCREEN_WIDTH-SHELL_MARGIN_X && ty>=START_Y && ty<START_Y+(grid_view?3*GRID_H:MAX_ENTRIES*FONT_Y_SPACE)) {
         int row=grid_view ? (int)((ty-START_Y)/GRID_H)*GRID_COLS+(int)((tx-SHELL_MARGIN_X)/GRID_W) : (int)((ty-START_Y)/FONT_Y_SPACE);
@@ -1124,14 +1124,15 @@ int browserMain() {
     vita2d_draw_rectangle(0,hy,SCREEN_WIDTH,FONT_Y_SPACE,panels[palette]);
     const char *theme_names[]={"Ocean Blue","Purple","Emerald","Sunset"};
     pgf_draw_text(SHELL_MARGIN_X+3,hy,accents[palette],theme_names[palette]);
-    vita2d_enable_clipping(); vita2d_set_clip_rectangle(185,hy,SCREEN_WIDTH-345,START_Y);
+    roundedBox(185,hy,SCREEN_WIDTH-410,FONT_Y_SPACE,8,backgrounds[palette]);
+    vita2d_enable_clipping(); vita2d_set_clip_rectangle(195,hy,SCREEN_WIDTH-270,START_Y);
     if(search_query[0]) { char result[180]; snprintf(result,sizeof(result),"%s: %s",search_found?"Found":"No match",search_query); pgf_draw_text(190,hy,DATE_TIME_COLOR,result); }
-    else { char count[64]; snprintf(count,sizeof(count),"%d items",MAX(0,file_list.length-(dir_level>0?1:0))); pgf_draw_text(190,hy,DATE_TIME_COLOR,count); }
+    else { char count[64]; snprintf(count,sizeof(count),"Search files...  (%d items)",MAX(0,file_list.length-(dir_level>0?1:0))); pgf_draw_text(190,hy,DATE_TIME_COLOR,count); }
     vita2d_disable_clipping();
-    roundedBox(SCREEN_WIDTH-340,hy,115,FONT_Y_SPACE,4,backgrounds[palette]);
+    pgf_draw_text(SCREEN_WIDTH-255,hy,FOCUS_COLOR,"X");
     roundedBox(SCREEN_WIDTH-220,hy,95,FONT_Y_SPACE,4,grid_view?backgrounds[palette]:shade(accents[palette],55));
     roundedBox(SCREEN_WIDTH-120,hy,100,FONT_Y_SPACE,4,grid_view?shade(accents[palette],55):backgrounds[palette]);
-    pgf_draw_text(SCREEN_WIDTH-310,hy,FOCUS_COLOR,"Find");
+
     pgf_draw_text(SCREEN_WIDTH-210,hy,FOCUS_COLOR,"L List");
     pgf_draw_text(SCREEN_WIDTH-110,hy,FOCUS_COLOR,"R Grid");
 #endif
