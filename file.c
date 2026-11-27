@@ -691,6 +691,7 @@ FileListEntry *fileListCopyEntry(FileListEntry *src) {
 
   memcpy(dst, src, sizeof(FileListEntry));
   dst->name = malloc(src->name_length + 1);
+  if (!dst->name) { free(dst); return NULL; }
   strcpy(dst->name, src->name);
   return dst;
 }
@@ -975,6 +976,7 @@ int fileListGetDeviceEntries(FileList *list) {
         if (entry) {
           entry->name_length = strlen(devices[i]);
           entry->name = malloc(entry->name_length + 1);
+          if (!entry->name) { free(entry); return VITASHELL_ERROR_INTERNAL; }
           strcpy(entry->name, devices[i]);
           entry->is_folder = 1;
           entry->type = FILE_TYPE_UNKNOWN;
@@ -1022,6 +1024,7 @@ int fileListGetDirectoryEntries(FileList *list, const char *path, int sort) {
   if (entry) {
     entry->name_length = strlen(DIR_UP);
     entry->name = malloc(entry->name_length + 1);
+    if (!entry->name) { free(entry); sceIoDclose(dfd); return VITASHELL_ERROR_INTERNAL; }
     strcpy(entry->name, DIR_UP);
     entry->is_folder = 1;
     entry->type = FILE_TYPE_UNKNOWN;
@@ -1046,6 +1049,7 @@ int fileListGetDirectoryEntries(FileList *list, const char *path, int sort) {
         if (entry->is_folder) {
           entry->name_length = strlen(dir.d_name) + 1;
           entry->name = malloc(entry->name_length + 1);
+          if (!entry->name) { free(entry); sceIoDclose(dfd); return VITASHELL_ERROR_INTERNAL; }
           strcpy(entry->name, dir.d_name);
           addEndSlash(entry->name);
           entry->type = FILE_TYPE_UNKNOWN;
@@ -1053,20 +1057,24 @@ int fileListGetDirectoryEntries(FileList *list, const char *path, int sort) {
         } else {
           entry->name_length = strlen(dir.d_name);
           entry->name = malloc(entry->name_length + 1);
+          if (!entry->name) { free(entry); sceIoDclose(dfd); return VITASHELL_ERROR_INTERNAL; }
           strcpy(entry->name, dir.d_name);
           entry->type = getFileType(entry->name);
           list->files++;
 
           if (dir.d_stat.st_size <= SYMLINK_MAX_SIZE) {
-            char *p = malloc(strlen(path) + strlen(dir.d_name) + 2);
+            size_t path_capacity = strlen(path) + strlen(dir.d_name) + 2;
+            char *p = malloc(path_capacity);
             if (!p) {
+              free(entry->name); free(entry); sceIoDclose(dfd);
               return VITASHELL_ERROR_INTERNAL;
             }
-            snprintf(p, MAX_PATH_LENGTH, "%s%s%s",
+            snprintf(p, path_capacity, "%s%s%s",
                      path, hasEndSlash(path) ? "" : "/", dir.d_name);
 
             Symlink* symlink = malloc(sizeof(Symlink));
             if (!symlink) {
+              free(p); free(entry->name); free(entry); sceIoDclose(dfd);
               return VITASHELL_ERROR_INTERNAL;
             }
             int res = resolveSimLink(symlink, p);
