@@ -746,19 +746,14 @@ FileListEntry *fileListFindEntry(FileList *list, const char *name) {
 }
 
 FileListEntry *fileListGetNthEntry(FileList *list, int n) {
-  if (!list)
-    return NULL;
-
-  FileListEntry *entry = list->head;
-
-  while (n > 0 && entry) {
-    n--;
-    entry = entry->next;
+  if (!list || n<0 || n>=list->length) return NULL;
+  if(n>list->length/2) {
+    FileListEntry *entry=list->tail;
+    for(int k=list->length-1;k>n && entry;k--) entry=entry->previous;
+    return entry;
   }
-
-  if (n != 0)
-    return NULL;
-
+  FileListEntry *entry=list->head;
+  while(n-- >0 && entry) entry=entry->next;
   return entry;
 }
 
@@ -1043,6 +1038,42 @@ int fileListGetDeviceEntries(FileList *list) {
   return 0;
 }
 
+/* Stable bottom-up merge sort: no temporary entry allocations. */
+static int directoryCompare(const FileListEntry *a,const FileListEntry *b,int sort) {
+  if(strcmp(a->name,DIR_UP)==0) return strcmp(b->name,DIR_UP)==0?0:-1;
+  if(strcmp(b->name,DIR_UP)==0) return 1;
+  if(a->is_folder!=b->is_folder) return sort==SORT_BY_NAME ? (a->is_folder?-1:1) : (a->is_folder?1:-1);
+  if(sort==SORT_BY_SIZE && !a->is_folder && a->size!=b->size) return a->size>b->size?-1:1;
+  if(sort==SORT_BY_DATE) {
+    SceRtcTick x={0},y={0}; sceRtcGetTick(&a->mtime,&x); sceRtcGetTick(&b->mtime,&y);
+    if(x.tick!=y.tick) return x.tick>y.tick?-1:1;
+  }
+  char x[MAX_NAME_LENGTH],y[MAX_NAME_LENGTH];
+  snprintf(x,sizeof(x),"%s",a->name); snprintf(y,sizeof(y),"%s",b->name);
+  removeEndSlash(x); removeEndSlash(y);
+  return strnatcasecmp(x,y);
+}
+static void sortDirectoryList(FileList *list,int sort) {
+  for(size_t width=1;width<(size_t)list->length;width*=2) {
+    FileListEntry *p=list->head,*head=NULL,*tail=NULL;
+    while(p) {
+      FileListEntry *q=p; size_t left=0,right=width;
+      while(left<width && q) { q=q->next; left++; }
+      while(left || (right && q)) {
+        FileListEntry *e;
+        if(!left) { e=q; q=q->next; right--; }
+        else if(!right || !q || directoryCompare(p,q,sort)<=0) { e=p; p=p->next; left--; }
+        else { e=q; q=q->next; right--; }
+        e->previous=tail;
+        if(tail) tail->next=e; else head=e;
+        tail=e;
+      }
+      p=q;
+    }
+    if(tail) tail->next=NULL;
+    list->head=head; list->tail=tail;
+  }
+}
 int fileListGetDirectoryEntries(FileList *list, const char *path, int sort) {
   if (!list)
     return VITASHELL_ERROR_ILLEGAL_ADDR;
@@ -1051,7 +1082,7 @@ int fileListGetDirectoryEntries(FileList *list, const char *path, int sort) {
   if (dfd < 0)
     return dfd;
 
-  FileListEntry *entry = malloc(sizeof(FileListEntry));
+  FileListEntry *entry = calloc(1,sizeof(FileListEntry));
   if (entry) {
     entry->name_length = strlen(DIR_UP);
     entry->name = malloc(entry->name_length + 1);
@@ -1060,7 +1091,7 @@ int fileListGetDirectoryEntries(FileList *list, const char *path, int sort) {
     entry->is_folder = 1;
     entry->type = FILE_TYPE_UNKNOWN;
     entry->is_symlink = 0;
-    fileListAddEntry(list, entry, sort);
+    fileListAddEntry(list, entry, SORT_NONE);
   }
 
   int res = 0;
@@ -1071,7 +1102,7 @@ int fileListGetDirectoryEntries(FileList *list, const char *path, int sort) {
 
     res = sceIoDread(dfd, &dir);
     if (res > 0) {
-      FileListEntry *entry = malloc(sizeof(FileListEntry));
+      FileListEntry *entry = calloc(1,sizeof(FileListEntry));
       if (entry) {
         entry->is_folder = SCE_S_ISDIR(dir.d_stat.st_mode);
         entry->is_symlink = 0;
@@ -1124,13 +1155,14 @@ int fileListGetDirectoryEntries(FileList *list, const char *path, int sort) {
         memcpy(&entry->mtime, (SceDateTime *) &dir.d_stat.st_mtime, sizeof(SceDateTime));
         memcpy(&entry->atime, (SceDateTime *) &dir.d_stat.st_atime, sizeof(SceDateTime));
 
-        fileListAddEntry(list, entry, sort);
+        fileListAddEntry(list, entry, SORT_NONE);
       }
     }
   } while (res > 0);
 
   sceIoDclose(dfd);
-
+  if (res < 0) return res;
+  if (sort != SORT_NONE) sortDirectoryList(list, sort);
   return 0;
 }
 
