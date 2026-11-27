@@ -81,6 +81,7 @@ NS2xZilla does not install a homebrew environment or provide an exploit. Back up
 | + | Toggle grid and list |
 | − | Start or stop FTP |
 | R3 | Settings |
+| L3 | Return to SD card root (`sdmc:/`) |
 | ZL / ZR | Rotate screen |
 
 Touch the on-screen controls to perform the corresponding actions. Tap a file to focus it, double-tap to open, or long-press for more actions.
