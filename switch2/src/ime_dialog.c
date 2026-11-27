@@ -30,7 +30,6 @@
 #include "ime_dialog.h"
 #include "utils.h"
 #include "theme.h"
-#include "pgf.h"
 
 #include <switch2_platform.h>
 
