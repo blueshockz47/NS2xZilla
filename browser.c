@@ -990,7 +990,8 @@ int browserMain() {
         unsigned clients; uint64_t up, down;
         ftpvita_metrics_snapshot(&clients, &up, &down);
         char status[128];
-        snprintf(status, sizeof(status), "FTP | %u clients | UP %.1f MB | DOWN %.1f MB", clients, (double)up / 1048576.0, (double)down / 1048576.0);
+        unsigned elapsed = ftpvita_uptime();
+        snprintf(status, sizeof(status), "FTP %s | %u clients | UP %.1f MiB | DOWN %.1f MiB | %um%02us", ftpvita_is_recovering() ? "RECOVERING" : "ON", clients, (double)up / 1048576.0, (double)down / 1048576.0, elapsed / 60, elapsed % 60);
         if (pgf_text_width(status) < MAX_WIDTH) pgf_draw_text(FILE_X, hy, DATE_TIME_COLOR, status);
       } else {
       pgf_draw_text(FILE_X, hy, DATE_TIME_COLOR, "Name");
