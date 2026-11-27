@@ -9,9 +9,9 @@
 Browse. Organize. Transfer. Stay in control.
 
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](https://github.com/blueshockz47/ounceshell-pro/blob/development/LICENSE)
-[![Status](https://img.shields.io/badge/Status-Release%20Candidate-orange)](https://github.com/blueshockz47/ounceshell-pro/actions)
+[![Status](https://img.shields.io/badge/Status-Stable-green)](https://github.com/blueshockz47/ounceshell-pro/actions)
 
-[Download test build](#download) · [Features](#features) · [Quick start](#quick-start) · [Controls](#controls) · [Credits](#credits)
+[Download](#download) · [Features](#features) · [Quick start](#quick-start) · [Controls](#controls) · [Credits](#credits)
 
 </div>
 
@@ -21,13 +21,11 @@ NS2xZilla is an independent evolution of OunceShell, designed for convenient SD 
 
 ## Download
 
-**RC29 — hardware-tested release candidate**
+**NS2xZilla v1.0.0-Stable**
 
-[Download NS2xZilla RC29 (ZIP)](https://github.com/blueshockz47/ounceshell-pro/actions/runs/46032623386/artifacts/15214638350)
+[Download from GitHub Releases](https://github.com/blueshockz47/ounceshell-pro/releases/latest)
 
-GitHub sign-in is required for Actions artifacts, which expire. See [Actions](https://github.com/blueshockz47/ounceshell-pro/actions) for newer development builds and [Releases](https://github.com/blueshockz47/ounceshell-pro/releases) for published releases when available.
-
-RC30 is in development and is not yet a validated release. The source for NS2xZilla is on the [development branch](https://github.com/blueshockz47/ounceshell-pro/tree/development).
+The stable release is based on RC33, which passed compilation and all 12 hardware checks reported by the maintainer. The release asset will be available once published.
 
 ## Features
 
@@ -35,14 +33,14 @@ RC30 is in development and is not yet a validated release. The source for NS2xZi
 | --- | --- |
 | Browse SD card files and folders | Grid and list views |
 | Copy, move, paste, rename and delete | Touchscreen and controller navigation |
-| Multi-selection and select all | Four Vivid UI color themes |
+| Multi-selection and select all | Eight NS2xZilla themes |
 | New folders and filename search (jump to match) | Manual portrait and landscape rotation |
 | File properties and sorting | Persistent theme, view and orientation preferences |
 | Conservative overwrite protection | On-screen shortcuts and transfer status |
 
-### Vivid UI
+### NS2xZilla Themes
 
-Choose Ocean Blue, Midnight Purple, Emerald Green or Sunset Orange by tapping the theme name. The interface features color-coded folders, selection outlines, rounded controls, touch selection and responsive portrait and landscape layouts.
+Choose Ocean Blue, Midnight Purple, Emerald Green, Sunset Orange, Crimson Red, Arctic Cyan, Royal Gold or Titanium Silver by tapping the theme name. The interface features color-coded folders, selection outlines, rounded controls, touch selection and responsive portrait and landscape layouts.
 
 ### Integrated FTP server
 
@@ -84,17 +82,13 @@ NS2xZilla does not install a homebrew environment or provide an exploit. Back up
 | L3 | Return to SD card root (`sdmc:/`) |
 | ZL / ZR | Rotate screen |
 
-Touch the on-screen controls to perform the corresponding actions. Tap a file to focus it, double-tap to open, or long-press for more actions.
+Touch the on-screen controls to perform the corresponding actions, except Grid/List and Rotate, which are controller-only. Drag the scrollbar or swipe to scroll with momentum. Portrait mode includes a custom staggered QWERTY keyboard. Tap a file to focus it, double-tap to open, or long-press for more actions.
 
 ## SwitchNest integration
 
 Use NS2xZilla as the console-side FTP server with a computer or phone on the same trusted local network. SwitchNest can provide client-side file management and homebrew transfers. See the [integration notes](https://github.com/blueshockz47/ounceshell-pro/blob/development/docs/SWITCHNEST-INTEGRATION.md).
 
 **Security:** FTP is unencrypted. Use a trusted isolated network; do not expose the server to the public internet. NS2xZilla itself does not block Nintendo services or guarantee protection from network-related risks.
-
-## What's next
-
-RC30 introduces a longer search field, stacked Grid/List and Rotate controls, small toolbar icons, touch rotation and a custom portrait keyboard. These changes are under validation. Native-resolution rendering improvements remain planned.
 
 ## Build from source
 
