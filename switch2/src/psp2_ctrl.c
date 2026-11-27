@@ -33,6 +33,8 @@
 #include <switch2_platform.h>
 
 #include <SDL.h>
+#include "vita2d_internal.h"
+#include <math.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -65,15 +67,10 @@ typedef struct {
 static const ButtonMapping button_mappings[] = {
   { SWITCH_BUTTON_A,      SCE_CTRL_CIRCLE },
   { SWITCH_BUTTON_B,      SCE_CTRL_CROSS },
-  { SWITCH_BUTTON_X,      SCE_CTRL_TRIANGLE },
-  { SWITCH_BUTTON_Y,      SCE_CTRL_SQUARE },
   { SWITCH_BUTTON_LSTICK, SCE_CTRL_L3 },
-  { SWITCH_BUTTON_RSTICK, SCE_CTRL_R3 },
-  { SWITCH_BUTTON_L,      SCE_CTRL_LTRIGGER },
-  { SWITCH_BUTTON_R,      SCE_CTRL_RTRIGGER },
-  { SWITCH_BUTTON_ZL,     SCE_CTRL_LTRIGGER },
-  { SWITCH_BUTTON_ZR,     SCE_CTRL_RTRIGGER },
-  { SWITCH_BUTTON_PLUS,   SCE_CTRL_START },
+  { SWITCH_BUTTON_RSTICK, SCE_CTRL_START },
+  { SWITCH_BUTTON_L,      SCE_CTRL_TRIANGLE },
+  { SWITCH_BUTTON_R,      SCE_CTRL_SQUARE },
   { SWITCH_BUTTON_MINUS,  SCE_CTRL_SELECT },
   { SWITCH_BUTTON_DLEFT,  SCE_CTRL_LEFT },
   { SWITCH_BUTTON_DUP,    SCE_CTRL_UP },
@@ -87,6 +84,13 @@ static const ButtonMapping button_mappings[] = {
 
 static SDL_Joystick *joysticks[MAX_JOYSTICKS];
 static int quit_requested = 0;
+static int root_pending,previous_root;
+int switch2TakeRoot(void){int v=root_pending;root_pending=0;return v;}
+static int rotation_delta=0,previous_triggers=0;
+static int view_toggle=0,previous_plus=0,xy_pending=0,previous_xy=0;
+int switch2TakeFileAction(void){int v=xy_pending;xy_pending=0;return v;}
+int switch2TakeViewToggle(void){int v=view_toggle;view_toggle=0;return v;}
+int switch2TakeRotation(void){int d=rotation_delta;rotation_delta=0;return d;}
 static int quit_cancel_phase = 0;
 
 /* From init: which Vita button confirms (SCE_SYSTEM_PARAM_ENTER_BUTTON_*). */
@@ -145,10 +149,47 @@ void switch2CtrlExit(void) {
   }
 }
 
+static int finger_active, tap_pending, finger_moved, gesture_kind;
+static SDL_FingerID finger_id;
+static float finger_x, finger_y, tap_x, tap_y,live_x,live_y;
+int switch2TouchState(float *sx,float *sy,float *x,float *y,int *moved){if(!finger_active)return 0;*moved=finger_moved;return switch2MapTouch(finger_x,finger_y,sx,sy)&&switch2MapTouch(live_x,live_y,x,y);}
+static Uint32 finger_time;
+int switch2TakeTap(float *x, float *y) {
+  if (!tap_pending) return 0;
+  tap_pending = 0;
+  *x = tap_x; *y = tap_y; return gesture_kind;
+}
 void switch2PumpEvents(void) {
   SDL_Event event;
+  tap_pending=0;
   while (SDL_PollEvent(&event)) {
     switch (event.type) {
+      case SDL_FINGERDOWN:
+        if (!finger_active) { finger_active = 1; finger_moved = 0; finger_id = event.tfinger.fingerId; finger_x = event.tfinger.x; finger_y = event.tfinger.y; finger_time = SDL_GetTicks();live_x=finger_x;live_y=finger_y; }
+        else finger_moved = 1;
+        break;
+      case SDL_FINGERMOTION:
+        if(finger_active&&finger_id==event.tfinger.fingerId){live_x=event.tfinger.x;live_y=event.tfinger.y;}
+        if (finger_active && finger_id == event.tfinger.fingerId && (fabsf(event.tfinger.x-finger_x) > 0.015f || fabsf(event.tfinger.y-finger_y) > 0.025f)) finger_moved = 1;
+        break;
+      case SDL_FINGERUP:
+        if (finger_active && finger_id == event.tfinger.fingerId) {
+          finger_active = 0;
+          if (finger_moved || (fabsf(event.tfinger.x-finger_x) <= 0.015f && fabsf(event.tfinger.y-finger_y) <= 0.025f)) {
+            SDL_Renderer *r = vita2dRenderer();
+            int w=0,h=0;
+            if (r && SDL_GetRendererOutputSize(r,&w,&h)==0 && w>0 && h>0) {
+              float sx,sy;
+              int inside=switch2MapTouch(event.tfinger.x,event.tfinger.y,&tap_x,&tap_y);
+              switch2MapTouch(finger_x,finger_y,&sx,&sy);
+              gesture_kind=0;
+              if(inside&&!finger_moved) gesture_kind=SDL_GetTicks()-finger_time>=500?2:1;
+              else if(inside&&fabsf(tap_y-sy)>32&&fabsf(tap_y-sy)>fabsf(tap_x-sx)) gesture_kind=tap_y<sy?3:4;
+              tap_pending=gesture_kind!=0;
+            }
+          }
+        }
+        break;
       case SDL_QUIT:
         quit_requested = 1;
         break;
@@ -215,12 +256,18 @@ int sceCtrlPeekBufferPositive(int port, SceCtrlData *pad_data, int count) {
     return 1;
   }
 
-  int i;
+  int i,triggers=0,plus=0,xy=0,root=0;
   for (i = 0; i < MAX_JOYSTICKS; i++) {
     if (!joysticks[i])
       continue;
 
     int buttons = SDL_JoystickNumButtons(joysticks[i]);
+    if(buttons>SWITCH_BUTTON_LSTICK&&SDL_JoystickGetButton(joysticks[i],SWITCH_BUTTON_LSTICK))root=1;
+    if(buttons>SWITCH_BUTTON_ZL && SDL_JoystickGetButton(joysticks[i],SWITCH_BUTTON_ZL)) triggers|=1;
+    if(buttons>SWITCH_BUTTON_ZR && SDL_JoystickGetButton(joysticks[i],SWITCH_BUTTON_ZR)) triggers|=2;
+    if(buttons>SWITCH_BUTTON_PLUS&&SDL_JoystickGetButton(joysticks[i],SWITCH_BUTTON_PLUS)) plus=1;
+    if(buttons>SWITCH_BUTTON_X&&SDL_JoystickGetButton(joysticks[i],SWITCH_BUTTON_X))xy|=1;
+    if(buttons>SWITCH_BUTTON_Y&&SDL_JoystickGetButton(joysticks[i],SWITCH_BUTTON_Y))xy|=2;
     size_t m;
     for (m = 0; m < N_BUTTON_MAPPINGS; m++) {
       if (button_mappings[m].switch_button < buttons &&
@@ -229,10 +276,27 @@ int sceCtrlPeekBufferPositive(int port, SceCtrlData *pad_data, int count) {
     }
   }
 
+  root_pending|=root&&!previous_root;previous_root=root;
+  xy_pending|=xy&~previous_xy;previous_xy=xy;
+  if(plus&&!previous_plus)view_toggle=1;previous_plus=plus;
+  int edge=triggers&~previous_triggers; previous_triggers=triggers; rotation_delta=edge==1?-1:edge==2?1:0;
   pad_data->lx = axisToVita(strongestAxis(0));
   pad_data->ly = axisToVita(strongestAxis(1));
   pad_data->rx = axisToVita(strongestAxis(2));
   pad_data->ry = axisToVita(strongestAxis(3));
+  int lx=(int)pad_data->lx-128,ly=(int)pad_data->ly-128,rx=(int)pad_data->rx-128,ry=(int)pad_data->ry-128;
+  if(abs(rx)+abs(ry)>abs(lx)+abs(ly)){pad_data->lx=pad_data->rx;pad_data->ly=pad_data->ry;}
+  int o=switch2EffectiveOrientation();
+  for(int j=0;j<o;j++) {
+    unsigned char x=pad_data->lx,y=pad_data->ly;
+    pad_data->lx=y; pad_data->ly=255-x;
+    unsigned int b=pad_data->buttons;
+    pad_data->buttons &= ~(SCE_CTRL_UP|SCE_CTRL_DOWN|SCE_CTRL_LEFT|SCE_CTRL_RIGHT);
+    if(b&SCE_CTRL_UP) pad_data->buttons|=SCE_CTRL_LEFT;
+    if(b&SCE_CTRL_RIGHT) pad_data->buttons|=SCE_CTRL_UP;
+    if(b&SCE_CTRL_DOWN) pad_data->buttons|=SCE_CTRL_RIGHT;
+    if(b&SCE_CTRL_LEFT) pad_data->buttons|=SCE_CTRL_DOWN;
+  }
 
   return 1;
 }

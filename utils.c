@@ -204,6 +204,11 @@ void readPad() {
   if (pad.buttons & SCE_CTRL_SELECT)
     current_pad[PAD_SELECT] = 1;
   
+#ifdef __SWITCH2__
+  int dx=(int)pad.lx-ANALOG_CENTER, dy=(int)pad.ly-ANALOG_CENTER;
+  if(abs(dx)>=abs(dy)) { if(dx>32) current_pad[PAD_LEFT_ANALOG_RIGHT]=1; else if(dx< -32) current_pad[PAD_LEFT_ANALOG_LEFT]=1; }
+  else { if(dy>32) current_pad[PAD_LEFT_ANALOG_DOWN]=1; else if(dy< -32) current_pad[PAD_LEFT_ANALOG_UP]=1; }
+#else
   if (pad.ly < ANALOG_CENTER - ANALOG_THRESHOLD) {
     current_pad[PAD_LEFT_ANALOG_UP] = 1;
   } else if (pad.ly > ANALOG_CENTER + ANALOG_THRESHOLD) {
@@ -216,6 +221,7 @@ void readPad() {
     current_pad[PAD_LEFT_ANALOG_RIGHT] = 1;
   }
 
+#endif
   if (pad.ry < ANALOG_CENTER - ANALOG_THRESHOLD) {
     current_pad[PAD_RIGHT_ANALOG_UP] = 1;
   } else if (pad.ry > ANALOG_CENTER + ANALOG_THRESHOLD) {
@@ -255,6 +261,17 @@ void readPad() {
     }
   }
   
+#ifdef __SWITCH2__
+  static uint64_t next_repeat[PAD_N_BUTTONS], began[PAD_N_BUTTONS];
+  uint64_t now=sceKernelGetProcessTimeWide();
+  const int axes[]={PAD_LEFT_ANALOG_UP,PAD_LEFT_ANALOG_DOWN,PAD_LEFT_ANALOG_LEFT,PAD_LEFT_ANALOG_RIGHT};
+  for(int j=0;j<4;j++) { int k=axes[j]; int fire=0;
+    if(!current_pad[k]) { next_repeat[k]=0; began[k]=0; }
+    else if(pressed_pad[k] || !next_repeat[k]) { fire=1; began[k]=now; next_repeat[k]=now+350000; }
+    else if(now>=next_repeat[k]) { fire=1; next_repeat[k]=now+(now-began[k]>2000000?110000:150000); }
+    hold_pad[k]=hold2_pad[k]=fire;
+  }
+#endif
   if (enter_button == SCE_SYSTEM_PARAM_ENTER_BUTTON_CIRCLE) {
     old_pad[PAD_ENTER] = old_pad[PAD_CIRCLE];
     current_pad[PAD_ENTER] = current_pad[PAD_CIRCLE];

@@ -41,6 +41,8 @@ extern "C" {
 /* Processes pending SDL events: controller hot-plug and the system's exit
    request. sceCtrlPeekBufferPositive calls this once per frame. */
 void switch2PumpEvents(void);
+/* Consume a gesture: 1 tap, 2 long press, 3 swipe up, 4 swipe down. */
+int switch2TakeTap(float *x, float *y);
 
 /* Nonzero once HOME's "close software" (SDL_QUIT) has been received or
    switch2RequestExit was called. While set, the controller reports a
@@ -51,6 +53,12 @@ void switch2RequestExit(void);
 
 /* Controls (psp2_ctrl.c) */
 
+extern int switch2_orientation;
+int switch2EffectiveOrientation(void);
+int switch2Portrait(void);
+int switch2ScreenWidth(void);
+int switch2ScreenHeight(void);
+int switch2MapTouch(float nx,float ny,float *x,float *y);
 void switch2CtrlInit(void);
 void switch2CtrlExit(void);
 

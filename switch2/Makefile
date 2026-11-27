@@ -3,7 +3,7 @@
 # Builds OunceShell, VitaShell's Switch 2 port, with the Switch 2 devkit
 # (https://github.com/ouncebrew/ounce-devkit). From the repository root:
 #
-#   make -f switch2/Makefile            ->  build/switch2/ounceshell.nro
+#   make -f switch2/Makefile            ->  build/switch2/NS2xZilla.nro
 #
 # or in the devkit's Docker image:
 #
@@ -23,10 +23,10 @@ TOOLS := $(DEVKITPRO)/devkitA64/bin/aarch64-none-elf-
 include $(LIBOUNCE)/switch2_cpu.mk
 OUT := build/switch2
 
-NAME := ounceshell
-TITLE := OunceShell
-AUTHOR := TheFloW (VitaShell), kurumuz
-VERSION := 2.0-switch2
+NAME := NS2xZilla
+TITLE := NS2xZilla
+AUTHOR := blueshockz47 (TheFloW, kurumuz)
+VERSION := 1.0.0-Stable
 # The homebrew menu's icon, a 256x256 JPEG.
 ICON := switch2/resources/icon.jpg
 

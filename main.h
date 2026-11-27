@@ -16,7 +16,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
   Modified for Switch 2: Vita-only headers and the FTP hook are left out,
-  and the data folder is sdmc:/switch/ounceshell/ (the port is OunceShell).
+  and the data folder is sdmc:/switch/NS2xZilla/ (the port is OunceShell).
 */
 
 #ifndef __MAIN_H__
@@ -71,7 +71,7 @@
 
 // VitaShell's data folder, with the trailing slash
 #ifdef __SWITCH2__
-#define VITASHELL_DATA_PATH "sdmc:/switch/ounceshell/"
+#define VITASHELL_DATA_PATH "sdmc:/switch/NS2xZilla/"
 #else
 #define VITASHELL_DATA_PATH "ux0:VitaShell/"
 #endif
@@ -111,8 +111,14 @@
   vita2d_pgf_text_width(font, FONT_SIZE, text)
   
 // Screen
+#ifdef __SWITCH2__
+#include <switch2_platform.h>
+#define SCREEN_WIDTH (switch2ScreenWidth())
+#define SCREEN_HEIGHT (switch2ScreenHeight())
+#else
 #define SCREEN_WIDTH 960
 #define SCREEN_HEIGHT 544
+#endif
 #define SCREEN_HALF_WIDTH (SCREEN_WIDTH/2)
 #define SCREEN_HALF_HEIGHT (SCREEN_HEIGHT/2)
 
@@ -151,11 +157,11 @@
 // File browser
 #define FILE_X (SHELL_MARGIN_X+26.0f)
 #define MARK_WIDTH (SCREEN_WIDTH - 2.0f * SHELL_MARGIN_X)
-#define INFORMATION_X 680.0f
-#define MAX_NAME_WIDTH 500.0f
+#define INFORMATION_X (SCREEN_WIDTH-280.0f)
+#define MAX_NAME_WIDTH (SCREEN_WIDTH-460.0f)
 
 // Uncommon dialog
-#define UNCOMMON_DIALOG_MAX_WIDTH 800
+#define UNCOMMON_DIALOG_MAX_WIDTH (SCREEN_WIDTH-80)
 #define UNCOMMON_DIALOG_PROGRESS_BAR_BOX_WIDTH 420.0f
 #define UNCOMMON_DIALOG_PROGRESS_BAR_HEIGHT 8.0f
 #define MSG_DIALOG_MODE_QR_SCAN 10

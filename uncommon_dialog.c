@@ -25,6 +25,12 @@
 #include "utils.h"
 #include "uncommon_dialog.h"
 #include "qr.h"
+#ifdef __SWITCH2__
+#include <switch2_platform.h>
+static float bx[2], by, bw, bh;
+static int button_count, button_keys[2];
+
+#endif
 
 typedef struct {
   int dialog_status;
@@ -43,6 +49,12 @@ typedef struct {
 } UncommonDialog;
 
 static UncommonDialog uncommon_dialog;
+#ifdef __SWITCH2__
+void uncommonDialogTap(float x,float y) {
+  if(uncommon_dialog.dialog_status!=UNCOMMON_DIALOG_OPENED || uncommon_dialog.status!=SCE_COMMON_DIALOG_STATUS_RUNNING) return;
+  for(int i=0;i<button_count;i++) if(x>=bx[i] && x<bx[i]+bw && y>=by && y<by+bh) { pressed_pad[button_keys[i]]=1; break; }
+}
+#endif
 
 static void calculateDialogBoxSize() {
   int len = strlen(uncommon_dialog.msg);
@@ -117,6 +129,9 @@ static void calculateDialogBoxSize() {
   // More space for buttons
   if (uncommon_dialog.buttonType != SCE_MSG_DIALOG_BUTTON_TYPE_NONE)
     uncommon_dialog.height += 2.0f * FONT_Y_SPACE;
+#ifdef __SWITCH2__
+  if(uncommon_dialog.buttonType != SCE_MSG_DIALOG_BUTTON_TYPE_NONE) { uncommon_dialog.height += 12; if(uncommon_dialog.width<360) uncommon_dialog.width=360; }
+#endif
 
   // Position
   uncommon_dialog.x = ALIGN_CENTER(SCREEN_WIDTH, uncommon_dialog.width);
@@ -135,6 +150,9 @@ int sceMsgDialogInit(const SceMsgDialogParam *param) {
     return VITASHELL_ERROR_ILLEGAL_ADDR;
 
   memset(&uncommon_dialog, 0, sizeof(UncommonDialog));
+#ifdef __SWITCH2__
+  button_count=0;
+#endif
 
   switch (param->mode) {
     case SCE_MSG_DIALOG_MODE_USER_MSG:
@@ -281,11 +299,19 @@ int drawUncommonDialog() {
     return 0;
 
   // Dialog background
+#ifdef __SWITCH2__
+  float w=uncommon_dialog.width*uncommon_dialog.scale,h=uncommon_dialog.height*uncommon_dialog.scale;
+  float x=uncommon_dialog.x+(uncommon_dialog.width-w)/2,y=uncommon_dialog.y+(uncommon_dialog.height-h)/2;
+  vita2d_draw_rectangle(0,0,SCREEN_WIDTH,SCREEN_HEIGHT,0x80000000);
+  vita2d_draw_rectangle(x,y,w,h,CONTEXT_MENU_FOCUS_COLOR);
+  if(w>4&&h>4) vita2d_draw_rectangle(x+2,y+2,w-4,h-4,DIALOG_BG_COLOR);
+#else
   vita2d_draw_texture_scale_rotate_hotspot(dialog_image, uncommon_dialog.x + uncommon_dialog.width / 2.0f,
                                            uncommon_dialog.y + uncommon_dialog.height / 2.0f,
                                            uncommon_dialog.scale * (uncommon_dialog.width / vita2d_texture_get_width(dialog_image)),
                                            uncommon_dialog.scale * (uncommon_dialog.height / vita2d_texture_get_height(dialog_image)),
                                            0.0f, vita2d_texture_get_width(dialog_image) / 2.0f, vita2d_texture_get_height(dialog_image) / 2.0f);
+#endif
 
   // Easing out
   if (uncommon_dialog.dialog_status == UNCOMMON_DIALOG_CLOSING) {
@@ -386,7 +412,24 @@ int drawUncommonDialog() {
       case SCE_MSG_DIALOG_BUTTON_TYPE_YESNO:
       case SCE_MSG_DIALOG_BUTTON_TYPE_OK_CANCEL:
       case SCE_MSG_DIALOG_BUTTON_TYPE_CANCEL:
+#ifdef __SWITCH2__
+        {
+          int two=uncommon_dialog.buttonType==SCE_MSG_DIALOG_BUTTON_TYPE_YESNO || uncommon_dialog.buttonType==SCE_MSG_DIALOG_BUTTON_TYPE_OK_CANCEL;
+          int cancel=uncommon_dialog.buttonType==SCE_MSG_DIALOG_BUTTON_TYPE_CANCEL;
+          button_count=two?2:1; bw=150; bh=36; by=string_y+5;
+          for(int b=0;b<button_count;b++) {
+            int negative=cancel||b==1;
+            bx[b]=SCREEN_WIDTH/2.0f-(button_count*bw+(button_count-1)*12)/2.0f+b*(bw+12);
+            button_keys[b]=negative?PAD_CANCEL:PAD_ENTER;
+            const char *label=negative?(uncommon_dialog.buttonType==SCE_MSG_DIALOG_BUTTON_TYPE_YESNO?language_container[NO]:language_container[CANCEL]):(uncommon_dialog.buttonType==SCE_MSG_DIALOG_BUTTON_TYPE_YESNO?language_container[YES]:language_container[OK]);
+            char btn[128]; snprintf(btn,sizeof(btn),"%s %s",negative?(enter_button==SCE_SYSTEM_PARAM_ENTER_BUTTON_CIRCLE?CROSS:CIRCLE):(enter_button==SCE_SYSTEM_PARAM_ENTER_BUTTON_CIRCLE?CIRCLE:CROSS),label);
+            vita2d_draw_rectangle(bx[b],by,bw,bh,negative?0xFF3939A8:0xFF43852A);
+            pgf_draw_text(bx[b]+(bw-pgf_text_width(btn))/2,by+7,0xFFFFFFFF,btn);
+          }
+        }
+#else
         pgf_draw_text(ALIGN_CENTER(SCREEN_WIDTH, pgf_text_width(button_string)), string_y + FONT_Y_SPACE, DIALOG_COLOR, button_string);
+#endif
         break;
     }
   }

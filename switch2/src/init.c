@@ -35,6 +35,11 @@
 #include "audio/vita_audio.h"
 
 #include <SDL.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
 
 #include <switch2_platform.h>
 
@@ -124,10 +129,46 @@ vita2d_pgf *loadSystemFonts() {
   return switch2LoadSystemFonts();
 }
 
+/* Copy legacy data without overwriting existing files or deleting the source. */
+static int migrateTree(const char *src,const char *dst,int depth) {
+  if(depth>16) return -1;
+  struct stat st;
+  if(stat(src,&st)!=0) return -1;
+  if(S_ISDIR(st.st_mode)) {
+    if(mkdir(dst,0777)!=0&&errno!=EEXIST) return -1;
+    DIR *d=opendir(src); if(!d)return -1;
+    struct dirent *e; int ok=0;
+    while((e=readdir(d))) {
+      if(!strcmp(e->d_name,".")||!strcmp(e->d_name,".."))continue;
+      char a[1024],b[1024];
+      int na=snprintf(a,sizeof(a),"%s/%s",src,e->d_name),nb=snprintf(b,sizeof(b),"%s/%s",dst,e->d_name);
+      if(na<0||nb<0||na>=sizeof(a)||nb>=sizeof(b)||migrateTree(a,b,depth+1)!=0)ok=-1;
+    }
+    closedir(d);return ok;
+  }
+  if(!S_ISREG(st.st_mode))return -1;
+  int in=open(src,O_RDONLY);if(in<0)return -1;
+  int out=open(dst,O_WRONLY|O_CREAT|O_EXCL,0666);
+  if(out<0){int err=errno;close(in);return err==EEXIST?0:-1;}
+  char buf[8192];ssize_t n;int ok=0;
+  while((n=read(in,buf,sizeof(buf)))>0){
+    ssize_t pos=0;while(pos<n){ssize_t w=write(out,buf+pos,n-pos);if(w<=0){ok=-1;break;}pos+=w;}if(ok)break;
+  }
+  if(n<0)ok=-1;
+  close(in);if(close(out)!=0)ok=-1;
+  if(ok)unlink(dst);return ok;
+}
 static void installDefaultFiles() {
   // Make VitaShell folders: sdmc:/switch/ may not exist yet.
   sceIoMkdir("sdmc:/switch", 0777);
   sceIoMkdir(VITASHELL_DATA_PATH, 0777);
+  const char *marker=VITASHELL_DATA_PATH ".migration-v1";
+  struct stat migration_stat;
+  if(stat(marker,&migration_stat)!=0 && stat("sdmc:/switch/ounceshell-pro",&migration_stat)==0) {
+    if(migrateTree("sdmc:/switch/ounceshell-pro","sdmc:/switch/NS2xZilla",0)==0) {
+      int fd=open(marker,O_WRONLY|O_CREAT|O_EXCL,0666);if(fd>=0)close(fd);
+    }
+  }
   sceIoMkdir(VITASHELL_DATA_PATH "internal", 0777);
   sceIoMkdir(VITASHELL_DATA_PATH "language", 0777);
   sceIoMkdir(VITASHELL_DATA_PATH "theme", 0777);

@@ -39,6 +39,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <stdarg.h>
+#include <errno.h>
+#include <stdatomic.h>
 
 /* How long the server thread sleeps between loops. */
 #define LOOP_INTERVAL_NS 1000000L
@@ -49,8 +52,46 @@
 
 static pthread_t server_thread;
 static int server_thread_started;
-static volatile int stop_requested;
-static volatile int serving;
+static atomic_int stop_requested;
+static atomic_int serving;
+static atomic_int recovering;
+static _Atomic uint64_t started_at;
+static uint64_t monotonic_seconds(void) { struct timespec t; return clock_gettime(CLOCK_MONOTONIC, &t) == 0 ? (uint64_t)t.tv_sec : 0; }
+int ftpvita_is_recovering(void) { return atomic_load(&recovering); }
+unsigned ftpvita_uptime(void) { uint64_t now = monotonic_seconds(), start = atomic_load(&started_at); return now >= start && start ? (unsigned)(now-start) : 0; }
+static atomic_uint clients;
+static _Atomic uint64_t uploaded, downloaded, up_rate, down_rate;
+static atomic_uint accepted_total, closed_total, restart_total, failure_total;
+void ftpvita_metrics_rates(uint64_t *up,uint64_t *down) { *up=atomic_load(&up_rate); *down=atomic_load(&down_rate); }
+void ftpvita_metrics_client(int delta) { if(delta > 0) { atomic_fetch_add(&clients, 1); atomic_fetch_add(&accepted_total,1); } else { atomic_fetch_sub(&clients, 1); atomic_fetch_add(&closed_total,1); } }
+void ftpvita_metrics_bytes(uint64_t bytes, int upload) { if(upload) atomic_fetch_add(&uploaded, bytes); else atomic_fetch_add(&downloaded, bytes); }
+void ftpvita_metrics_snapshot(unsigned *count, uint64_t *up, uint64_t *down) { *count = atomic_load(&clients); *up = atomic_load(&uploaded); *down = atomic_load(&downloaded); }
+
+/* Bounded diagnostic log; omit command arguments and raw FTP replies. */
+static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
+static void log_event(const char *format, ...) {
+  int saved_errno = errno;
+  pthread_mutex_lock(&log_lock);
+  const char *path = "sdmc:/switch/NS2xZilla/ftp-diagnostics.log";
+  FILE *fp = fopen(path, "a+");
+  if (fp) {
+    if (fseek(fp, 0, SEEK_END) == 0 && ftell(fp) >= 512 * 1024) {
+      fclose(fp);
+      fp = fopen(path, "w");
+    }
+    if (fp) {
+      fprintf(fp, "[%lld] ", (long long)time(NULL));
+      va_list args;
+      va_start(args, format);
+      vfprintf(fp, format, args);
+      va_end(args);
+      fputc('\n', fp);
+      fclose(fp);
+    }
+  }
+  pthread_mutex_unlock(&log_lock);
+  errno = saved_errno;
+}
 
 static void sleepFor(time_t seconds, long nanoseconds) {
   struct timespec interval = { .tv_sec = seconds, .tv_nsec = nanoseconds };
@@ -60,27 +101,50 @@ static void sleepFor(time_t seconds, long nanoseconds) {
 static void *serve(void *argument) {
   (void)argument;
 
+  int initialized = 1;
+  uint64_t sample=monotonic_seconds(), last_up=0,last_down=0;
   while (!stop_requested) {
     loop_status_t status = ftp_loop();
+    uint64_t now=monotonic_seconds();
+    if(now>sample) { uint64_t u=atomic_load(&uploaded),d=atomic_load(&downloaded); atomic_store(&up_rate,(u-last_up)/(now-sample)); atomic_store(&down_rate,(d-last_down)/(now-sample)); last_up=u; last_down=d; sample=now; }
 
-    if (status == LOOP_EXIT)
+    if (status == LOOP_EXIT) {
+      log_event("FTP loop exit");
       break;
+    }
 
     if (status == LOOP_RESTART) {
+      atomic_fetch_add(&restart_total,1);
+      atomic_store(&up_rate,0); atomic_store(&down_rate,0);
+      log_event("Network restart requested");
       // The network went down: start again once it is back.
+      recovering = 1;
       ftp_exit();
-      while (!stop_requested && ftp_init() != 0)
-        sleepFor(RESTART_INTERVAL_S, 0);
+      initialized = 0;
+      unsigned delay = RESTART_INTERVAL_S;
+      while (!stop_requested) {
+        if (ftp_init() == 0) { initialized = 1; break; }
+        log_event("FTP restart failed; retrying");
+        for (unsigned tick = 0; tick < delay * 10 && !stop_requested; ++tick) sleepFor(0, 100000000L);
+        if (delay < 8) delay *= 2;
+      }
+      recovering = 0;
       if (stop_requested)
         break;
+      sample=monotonic_seconds(); last_up=atomic_load(&uploaded); last_down=atomic_load(&downloaded);
+      log_event("FTP restarted");
       continue;
     }
 
     sleepFor(0, LOOP_INTERVAL_NS);
   }
 
-  ftp_exit();
+  if (initialized) ftp_exit();
+  recovering = 0;
   serving = 0;
+  atomic_store(&up_rate,0); atomic_store(&down_rate,0);
+  log_event("FTP summary: accepted=%u closed=%u restarts=%u transfer_errors=%u upload_bytes=%llu download_bytes=%llu uptime_s=%u",atomic_load(&accepted_total),atomic_load(&closed_total),atomic_load(&restart_total),atomic_load(&failure_total),(unsigned long long)atomic_load(&uploaded),(unsigned long long)atomic_load(&downloaded),ftpvita_uptime());
+  log_event("FTP thread stopped");
   return NULL;
 }
 
@@ -117,6 +181,13 @@ int ftpvita_init(char *vita_ip, unsigned short int *vita_port) {
   if (ftp_init() != 0)
     return -1;
 
+  atomic_store(&clients, 0);
+  atomic_store(&uploaded, 0);
+  atomic_store(&downloaded, 0);
+  atomic_store(&up_rate,0); atomic_store(&down_rate,0);
+  atomic_store(&accepted_total,0); atomic_store(&closed_total,0); atomic_store(&restart_total,0); atomic_store(&failure_total,0);
+  recovering = 0;
+  atomic_store(&started_at, monotonic_seconds());
   stop_requested = 0;
   serving = 1;
   if (pthread_create(&server_thread, NULL, serve, NULL) != 0) {
@@ -128,6 +199,7 @@ int ftpvita_init(char *vita_ip, unsigned short int *vita_port) {
 
   snprintf(vita_ip, 16, "%s", info.ip_address);
   *vita_port = FTP_LISTEN_PORT;
+  log_event("FTP started on port %u", (unsigned)*vita_port);
   return 0;
 }
 
@@ -149,12 +221,30 @@ void console_set_status(const char *format, ...) {
   (void)format;
 }
 
+void ftpvita_metrics_failure(void) { atomic_fetch_add(&failure_total,1); }
+
 void console_print(const char *format, ...) {
-  (void)format;
+  int saved_errno=errno;
+  /* Log only known event formats; never log raw commands or replies. */
+  if (strstr(format, "accepted connection") || strstr(format, "closing connection") ||
+      strstr(format, "connected to") || strstr(format, "revents=") ||
+      strstr(format, "errno") || strstr(format, ": %d %s") ||
+      strstr(format, "only sent") || strstr(format, "failed to allocate") || strstr(format,"FTP idle timeout") || strstr(format,"FTP client limit reached")) {
+    /* Format strings with file paths are excluded by the allowlist below. */
+    if (strstr(format, "'%s'") || strstr(format, "%s %s")) return;
+    char line[256];
+    va_list args;
+    va_start(args, format);
+    vsnprintf(line, sizeof(line), format, args);
+    va_end(args);
+    log_event("%s", line);
+    errno=saved_errno;
+  }
 }
 
 void debug_print(const char *format, ...) {
-  (void)format;
+  if (strstr(format, "peer closed") || strstr(format, "disconnected from peer") || strstr(format, "exiting ftp"))
+    log_event("%s", format);
 }
 
 void console_render(void) {
