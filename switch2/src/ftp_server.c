@@ -54,6 +54,11 @@ static pthread_t server_thread;
 static int server_thread_started;
 static atomic_int stop_requested;
 static atomic_int serving;
+static atomic_uint clients;
+static _Atomic uint64_t uploaded, downloaded;
+void ftpvita_metrics_client(int delta) { if(delta > 0) atomic_fetch_add(&clients, 1); else atomic_fetch_sub(&clients, 1); }
+void ftpvita_metrics_bytes(uint64_t bytes, int upload) { if(upload) atomic_fetch_add(&uploaded, bytes); else atomic_fetch_add(&downloaded, bytes); }
+void ftpvita_metrics_snapshot(unsigned *count, uint64_t *up, uint64_t *down) { *count = atomic_load(&clients); *up = atomic_load(&uploaded); *down = atomic_load(&downloaded); }
 
 /* Bounded diagnostic log; omit command arguments and raw FTP replies. */
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -153,6 +158,9 @@ int ftpvita_init(char *vita_ip, unsigned short int *vita_port) {
   if (ftp_init() != 0)
     return -1;
 
+  atomic_store(&clients, 0);
+  atomic_store(&uploaded, 0);
+  atomic_store(&downloaded, 0);
   stop_requested = 0;
   serving = 1;
   if (pthread_create(&server_thread, NULL, serve, NULL) != 0) {
