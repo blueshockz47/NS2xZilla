@@ -1435,7 +1435,11 @@ ftp_session_new(int listen_fd)
   session->cmd_fd = new_fd;
 
   /* send initiator response */
+#ifdef __SWITCH2__
+  ftp_send_response(session, 220, "OunceShell Pro FTP ready\r\n");
+#else
   ftp_send_response(session, 220, "Hello!\r\n");
+#endif
 }
 
 /*! accept PASV connection for ftp session
