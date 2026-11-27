@@ -985,12 +985,12 @@ static void drawControlHints(void) {
   pgf_draw_text(SHELL_MARGIN_X,HINT_BAR_TOP,ftpvita_is_recovering()?0xFF50A5FF:ftpvita_is_initialized()?0xFF83D49A:DATE_TIME_COLOR,info);
   char count[64]; snprintf(count,sizeof(count),"%d selected",mark_list.length);
   if(touch_select) pgf_draw_text(SCREEN_WIDTH-SHELL_MARGIN_X-pgf_text_width(count),HINT_BAR_TOP,accents[palette],count);
-  else if(ftpvita_is_initialized()) { unsigned clients; uint64_t up,down; ftpvita_metrics_snapshot(&clients,&up,&down); uint64_t ur,dr; ftpvita_metrics_rates(&ur,&dr); snprintf(count,sizeof(count),"U %.1f D %.1f MiB/s",(double)ur/1048576.0,(double)dr/1048576.0); if(pgf_text_width(info)+pgf_text_width(count)<SCREEN_WIDTH-60) pgf_draw_text(SCREEN_WIDTH-SHELL_MARGIN_X-pgf_text_width(count),HINT_BAR_TOP,DATE_TIME_COLOR,count); }
+  else if(ftpvita_is_initialized()) { unsigned clients; uint64_t up,down; ftpvita_metrics_snapshot(&clients,&up,&down); uint64_t ur,dr; ftpvita_metrics_rates(&ur,&dr); snprintf(count,sizeof(count),"U %.1f D %.1f MiB/s",(double)ur/1048576.0,(double)dr/1048576.0); if(pgf_text_width(info)+pgf_text_width(count)<SCREEN_WIDTH-60) pgf_draw_text(SHELL_MARGIN_X+pgf_text_width(info)+16,HINT_BAR_TOP,DATE_TIME_COLOR,count); }
   for(int n=0;n<6;n++) { float x=toolbarEdge(n),w=toolbarEdge(n+1)-x; const char *label=touch_select?select[n]:pasting?paste[n]:normal[n]; unsigned int bg=backgrounds[palette], color=0xFFFFFFFF;
     if(touch_select) { if(n==0||n==4) bg=0xFF995A23; if(n==1||n==2) { bg=0xFF2CB5E6; color=0xFF202020; } if(n==3) bg=0xFF3434B9; if(n==5) bg=0xFF436932; if(n<4&&(!mark_list.length||(n==2&&mark_list.length!=1))) { bg=backgrounds[palette]; color=0xFFAAAAAA; } }
     else if(!pasting&&n==0&&ftpvita_is_initialized()) bg=0xFF365E30;
-    roundedBox(x+5,HINT_BAR_TOP+24,w-10,34,8,bg);
-    if(!touch_select&&!pasting&&n==5) { float sw=(w-20)/3; roundedBox(x+10,HINT_BAR_TOP+25,sw,5,2,0xFFB75D24); roundedBox(x+10+sw,HINT_BAR_TOP+25,sw,5,2,0xFF3A3AC7); roundedBox(x+10+2*sw,HINT_BAR_TOP+25,sw,5,2,0xFF35BFEF); }
+    roundedBox(x+5,HINT_BAR_TOP+(!touch_select&&!pasting&&n==5?19:24),w-10,!touch_select&&!pasting&&n==5?39:34,8,bg);
+    if(!touch_select&&!pasting&&n==5) { float sw=(w-20)/3; roundedBox(x+10,HINT_BAR_TOP+51,sw,5,2,0xFFB75D24); roundedBox(x+10+sw,HINT_BAR_TOP+51,sw,5,2,0xFF3A3AC7); roundedBox(x+10+2*sw,HINT_BAR_TOP+51,sw,5,2,0xFF35BFEF); }
     pgf_draw_text(x+(w-pgf_text_width(label))/2,HINT_BAR_TOP+29,color,label);
   }
 
