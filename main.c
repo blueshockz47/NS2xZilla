@@ -199,6 +199,14 @@ void drawShellInfo(const char *path) {
     x = ftp_x - STATUS_BAR_SPACE_X;
   }
 
+#ifdef __SWITCH2__
+  /* Browser toolbar owns the second line. Clip rather than copying an
+     arbitrary-length path into fixed-size buffers. */
+  vita2d_enable_clipping();
+  vita2d_set_clip_rectangle(SHELL_MARGIN_X,PATH_Y,SCREEN_WIDTH-SHELL_MARGIN_X,PATH_Y+FONT_Y_SPACE);
+  pgf_draw_text(SHELL_MARGIN_X,PATH_Y,PATH_COLOR,path ? path : "");
+  vita2d_disable_clipping();
+#else
   // TODO: make this more elegant
   // Path
   int line_width = 0;
@@ -235,6 +243,7 @@ void drawShellInfo(const char *path) {
     pgf_draw_text(SHELL_MARGIN_X, PATH_Y, PATH_COLOR, path_first_line);
     pgf_draw_text(SHELL_MARGIN_X, PATH_Y + FONT_Y_SPACE, PATH_COLOR, path_second_line);
   }
+#endif
 }
 
 void initFtp() {
