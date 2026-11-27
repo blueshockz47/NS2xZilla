@@ -1303,6 +1303,9 @@ ftp_send_response(ftp_session_t *session,
   if(session->cmd_fd < 0)
     return;
 
+#ifdef __SWITCH2__
+  if(code==425 || code==426 || code==451) ftpvita_metrics_failure();
+#endif
   /* print response code and message to buffer */
   va_start(ap, fmt);
   if(code > 0)
