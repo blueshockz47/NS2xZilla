@@ -32,7 +32,7 @@ int initMessageDialog(int type, const char *msg, ...) {
   char string[512];
 
   va_start(list, msg);
-  vsprintf(string, msg, list);
+  vsnprintf(string, sizeof(string), msg, list);
   va_end(list);
 
   strcpy(message_string, string);
