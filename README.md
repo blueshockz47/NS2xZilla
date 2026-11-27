@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/blueshockz47/ounceshell-pro/development/switch2/resources/icon.jpg" width="112" alt="NS2xZilla icon">
+<img src="https://raw.githubusercontent.com/blueshockz47/NS2xZilla/development/switch2/resources/icon.jpg" width="112" alt="NS2xZilla icon">
 
 # NS2xZilla
 
@@ -8,8 +8,8 @@
 
 Browse. Organize. Transfer. Stay in control.
 
-[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](https://github.com/blueshockz47/ounceshell-pro/blob/development/LICENSE)
-[![Status](https://img.shields.io/badge/Status-Stable-green)](https://github.com/blueshockz47/ounceshell-pro/actions)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](https://github.com/blueshockz47/NS2xZilla/blob/development/LICENSE)
+[![Status](https://img.shields.io/badge/Status-Stable-green)](https://github.com/blueshockz47/NS2xZilla/actions)
 
 [Download](#download) · [Features](#features) · [Quick start](#quick-start) · [Controls](#controls) · [Credits](#credits)
 
@@ -23,9 +23,9 @@ NS2xZilla is an independent evolution of OunceShell, designed for convenient SD 
 
 **NS2xZilla v1.0.0-Stable**
 
-[Download from GitHub Releases](https://github.com/blueshockz47/ounceshell-pro/releases/latest)
+[Download NS2xZilla v1.0.0-Stable (ZIP)](https://github.com/blueshockz47/NS2xZilla/releases/download/v1.0.0-Stable/NS2xZilla-v1.0.0-Stable.zip)
 
-The stable release is based on RC33, which passed compilation and all 12 hardware checks reported by the maintainer. The release asset will be available once published.
+The stable release is based on RC33, which passed compilation and all 12 hardware checks reported by the maintainer. 
 
 ## Features
 
@@ -40,7 +40,7 @@ The stable release is based on RC33, which passed compilation and all 12 hardwar
 
 ### NS2xZilla Themes
 
-Choose Ocean Blue, Midnight Purple, Emerald Green, Sunset Orange, Crimson Red, Arctic Cyan, Royal Gold or Titanium Silver by tapping the theme name. The interface features color-coded folders, selection outlines, rounded controls, touch selection and responsive portrait and landscape layouts.
+Choose from eight themes by tapping the theme name or opening Settings. The interface features color-coded folders, selection outlines, rounded controls, touch selection and responsive portrait and landscape layouts.
 
 ### Integrated FTP server
 
@@ -60,10 +60,10 @@ Inherited from OunceShell: archive browsing, text and hex editing, image viewing
 ## Screenshots
 
 <table>
-  <tr><td><img src="https://raw.githubusercontent.com/blueshockz47/ounceshell-pro/master/IMG_8081.jpeg" width="100%" alt="NS2xZilla screenshot 1"></td><td><img src="https://raw.githubusercontent.com/blueshockz47/ounceshell-pro/master/IMG_8082.jpeg" width="100%" alt="NS2xZilla screenshot 2"></td></tr>
-  <tr><td><img src="https://raw.githubusercontent.com/blueshockz47/ounceshell-pro/master/IMG_8083.jpeg" width="100%" alt="NS2xZilla screenshot 3"></td><td><img src="https://raw.githubusercontent.com/blueshockz47/ounceshell-pro/master/IMG_8084.jpeg" width="100%" alt="NS2xZilla screenshot 4"></td></tr>
-  <tr><td><img src="https://raw.githubusercontent.com/blueshockz47/ounceshell-pro/master/IMG_8085.jpeg" width="100%" alt="NS2xZilla screenshot 5"></td><td><img src="https://raw.githubusercontent.com/blueshockz47/ounceshell-pro/master/IMG_8086.jpeg" width="100%" alt="NS2xZilla screenshot 6"></td></tr>
-  <tr><td colspan="2" align="center"><img src="https://raw.githubusercontent.com/blueshockz47/ounceshell-pro/master/IMG_8087.jpeg" width="50%" alt="NS2xZilla screenshot 7"></td></tr>
+  <tr><td><img src="https://raw.githubusercontent.com/blueshockz47/NS2xZilla/master/IMG_8081.jpeg" width="100%" alt="NS2xZilla screenshot 1"></td><td><img src="https://raw.githubusercontent.com/blueshockz47/NS2xZilla/master/IMG_8082.jpeg" width="100%" alt="NS2xZilla screenshot 2"></td></tr>
+  <tr><td><img src="https://raw.githubusercontent.com/blueshockz47/NS2xZilla/master/IMG_8083.jpeg" width="100%" alt="NS2xZilla screenshot 3"></td><td><img src="https://raw.githubusercontent.com/blueshockz47/NS2xZilla/master/IMG_8084.jpeg" width="100%" alt="NS2xZilla screenshot 4"></td></tr>
+  <tr><td><img src="https://raw.githubusercontent.com/blueshockz47/NS2xZilla/master/IMG_8085.jpeg" width="100%" alt="NS2xZilla screenshot 5"></td><td><img src="https://raw.githubusercontent.com/blueshockz47/NS2xZilla/master/IMG_8086.jpeg" width="100%" alt="NS2xZilla screenshot 6"></td></tr>
+  <tr><td colspan="2" align="center"><img src="https://raw.githubusercontent.com/blueshockz47/NS2xZilla/master/IMG_8087.jpeg" width="50%" alt="NS2xZilla screenshot 7"></td></tr>
 </table>
 
 ## Quick start
@@ -95,7 +95,7 @@ Touch the on-screen controls to perform the corresponding actions, except Grid/L
 
 ## SwitchNest integration
 
-Use NS2xZilla as the console-side FTP server with a computer or phone on the same trusted local network. SwitchNest can provide client-side file management and homebrew transfers. See the [integration notes](https://github.com/blueshockz47/ounceshell-pro/blob/development/docs/SWITCHNEST-INTEGRATION.md).
+Use NS2xZilla as the console-side FTP server with a computer or phone on the same trusted local network. SwitchNest can provide client-side file management and homebrew transfers. See the [integration notes](https://github.com/blueshockz47/NS2xZilla/blob/development/docs/SWITCHNEST-INTEGRATION.md).
 
 **Security:** FTP is unencrypted. Use a trusted isolated network; do not expose the server to the public internet. NS2xZilla itself does not block Nintendo services or guarantee protection from network-related risks.
 
@@ -104,14 +104,14 @@ Use NS2xZilla as the console-side FTP server with a computer or phone on the sam
 Use [ounce-devkit](https://github.com/ouncebrew/ounce-devkit) and the development branch:
 
 ```sh
-git clone -b development https://github.com/blueshockz47/ounceshell-pro.git
-cd ounceshell-pro
+git clone -b development https://github.com/blueshockz47/NS2xZilla.git
+cd NS2xZilla
 make -f switch2/Makefile
 ```
 
 Output: `build/switch2/NS2xZilla.nro`.
 
-[Port documentation](https://github.com/blueshockz47/ounceshell-pro/blob/development/switch2/PORT.md) · [RC testing notes](https://github.com/blueshockz47/ounceshell-pro/blob/development/docs/RC-TESTS.md) · [Report an issue](https://github.com/blueshockz47/ounceshell-pro/issues)
+[Port documentation](https://github.com/blueshockz47/NS2xZilla/blob/development/switch2/PORT.md) · [RC testing notes](https://github.com/blueshockz47/NS2xZilla/blob/development/docs/RC-TESTS.md) · [Report an issue](https://github.com/blueshockz47/NS2xZilla/issues)
 
 ## Credits
 
