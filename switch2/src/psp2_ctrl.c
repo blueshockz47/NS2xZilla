@@ -73,8 +73,6 @@ static const ButtonMapping button_mappings[] = {
   { SWITCH_BUTTON_RSTICK, SCE_CTRL_R3 },
   { SWITCH_BUTTON_L,      SCE_CTRL_LTRIGGER },
   { SWITCH_BUTTON_R,      SCE_CTRL_RTRIGGER },
-  { SWITCH_BUTTON_ZL,     SCE_CTRL_LTRIGGER },
-  { SWITCH_BUTTON_ZR,     SCE_CTRL_RTRIGGER },
   { SWITCH_BUTTON_PLUS,   SCE_CTRL_START },
   { SWITCH_BUTTON_MINUS,  SCE_CTRL_SELECT },
   { SWITCH_BUTTON_DLEFT,  SCE_CTRL_LEFT },
@@ -89,6 +87,8 @@ static const ButtonMapping button_mappings[] = {
 
 static SDL_Joystick *joysticks[MAX_JOYSTICKS];
 static int quit_requested = 0;
+static int rotation_delta=0,previous_triggers=0;
+int switch2TakeRotation(void){int d=rotation_delta;rotation_delta=0;return d;}
 static int quit_cancel_phase = 0;
 
 /* From init: which Vita button confirms (SCE_SYSTEM_PARAM_ENTER_BUTTON_*). */
@@ -252,12 +252,14 @@ int sceCtrlPeekBufferPositive(int port, SceCtrlData *pad_data, int count) {
     return 1;
   }
 
-  int i;
+  int i,triggers=0;
   for (i = 0; i < MAX_JOYSTICKS; i++) {
     if (!joysticks[i])
       continue;
 
     int buttons = SDL_JoystickNumButtons(joysticks[i]);
+    if(buttons>SWITCH_BUTTON_ZL && SDL_JoystickGetButton(joysticks[i],SWITCH_BUTTON_ZL)) triggers|=1;
+    if(buttons>SWITCH_BUTTON_ZR && SDL_JoystickGetButton(joysticks[i],SWITCH_BUTTON_ZR)) triggers|=2;
     size_t m;
     for (m = 0; m < N_BUTTON_MAPPINGS; m++) {
       if (button_mappings[m].switch_button < buttons &&
@@ -266,6 +268,7 @@ int sceCtrlPeekBufferPositive(int port, SceCtrlData *pad_data, int count) {
     }
   }
 
+  int edge=triggers&~previous_triggers; previous_triggers=triggers; rotation_delta=edge==1?-1:edge==2?1:0;
   pad_data->lx = axisToVita(strongestAxis(0));
   pad_data->ly = axisToVita(strongestAxis(1));
   pad_data->rx = axisToVita(strongestAxis(2));
