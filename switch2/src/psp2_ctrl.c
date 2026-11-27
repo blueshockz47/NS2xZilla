@@ -33,6 +33,8 @@
 #include <switch2_platform.h>
 
 #include <SDL.h>
+#include "vita2d_internal.h"
+#include <math.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -145,10 +147,41 @@ void switch2CtrlExit(void) {
   }
 }
 
+static int finger_active, tap_pending, finger_moved;
+static SDL_FingerID finger_id;
+static float finger_x, finger_y, tap_x, tap_y;
+static Uint32 finger_time;
+int switch2TakeTap(float *x, float *y) {
+  if (!tap_pending) return 0;
+  tap_pending = 0;
+  *x = tap_x; *y = tap_y; return 1;
+}
 void switch2PumpEvents(void) {
   SDL_Event event;
   while (SDL_PollEvent(&event)) {
     switch (event.type) {
+      case SDL_FINGERDOWN:
+        if (!finger_active) { finger_active = 1; finger_moved = 0; finger_id = event.tfinger.fingerId; finger_x = event.tfinger.x; finger_y = event.tfinger.y; finger_time = SDL_GetTicks(); }
+        else finger_moved = 1;
+        break;
+      case SDL_FINGERMOTION:
+        if (finger_active && finger_id == event.tfinger.fingerId && (fabsf(event.tfinger.x-finger_x) > 0.015f || fabsf(event.tfinger.y-finger_y) > 0.025f)) finger_moved = 1;
+        break;
+      case SDL_FINGERUP:
+        if (finger_active && finger_id == event.tfinger.fingerId) {
+          finger_active = 0;
+          if (!finger_moved && SDL_GetTicks()-finger_time < 450 && fabsf(event.tfinger.x-finger_x) <= 0.015f && fabsf(event.tfinger.y-finger_y) <= 0.025f) {
+            SDL_Renderer *r = vita2dRenderer();
+            int w=0,h=0;
+            if (r && SDL_GetRendererOutputSize(r,&w,&h)==0 && w>0 && h>0) {
+              float scale=fminf((float)w/VITA2D_LOGICAL_WIDTH,(float)h/VITA2D_LOGICAL_HEIGHT);
+              tap_x=(event.tfinger.x*w-(w-VITA2D_LOGICAL_WIDTH*scale)/2)/scale;
+              tap_y=(event.tfinger.y*h-(h-VITA2D_LOGICAL_HEIGHT*scale)/2)/scale;
+              tap_pending=1;
+            }
+          }
+        }
+        break;
       case SDL_QUIT:
         quit_requested = 1;
         break;
