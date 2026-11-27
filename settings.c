@@ -79,9 +79,6 @@ static ConfigEntry theme_entries[] = {
 
 #ifdef __SWITCH2__
 SettingsMenuOption main_settings[] = {
-  { VITASHELL_SETTINGS_THEME,           SETTINGS_OPTION_TYPE_OPTIONS, NULL, NULL, 0, NULL, 0, NULL },
-  { VITASHELL_SETTINGS_ENTER_BUTTON,    SETTINGS_OPTION_TYPE_OPTIONS, NULL, NULL, 0,
-    enter_button_options, sizeof(enter_button_options) / sizeof(char **), &vitashell_config.enter_button },
   { VITASHELL_SETTINGS_THEME, SETTINGS_OPTION_TYPE_OPTIONS, NULL,NULL,0,orientation_options,4,&switch2_orientation },
 };
 
@@ -133,6 +130,7 @@ void loadSettingsConfig() {
   if (vitashell_config.enter_button < 0 || vitashell_config.enter_button > 1)
     vitashell_config.enter_button = 0;
   if(switch2_orientation<0||switch2_orientation>3) switch2_orientation=0;
+  vitashell_config.enter_button=0;
   applyEnterButton();
 #endif
 }
@@ -142,6 +140,7 @@ void saveSettingsConfig() {
   writeConfig(VITASHELL_DATA_PATH "settings.txt", settings_entries, sizeof(settings_entries) / sizeof(ConfigEntry));
 
 #ifdef __SWITCH2__
+  vitashell_config.enter_button=0;
   applyEnterButton();
 #else
   if (sceKernelGetModel() == SCE_KERNEL_MODEL_VITATV) {
@@ -221,7 +220,7 @@ void openSettingsMenu() {
 
   int i;
   for (i = 0; i < (sizeof(main_settings) / sizeof(SettingsMenuOption)); i++) {
-    if (main_settings[i].name == VITASHELL_SETTINGS_THEME) {
+    if (main_settings[i].name == VITASHELL_SETTINGS_THEME && main_settings[i].value != &switch2_orientation) {
       theme_index = i;
       break;
     }
@@ -307,12 +306,13 @@ void drawSettingsMenu() {
 
   // Draw settings menu
 #ifdef __SWITCH2__
-  vita2d_draw_rectangle(0,SCREEN_HEIGHT-settings_menu.cur_pos,SCREEN_WIDTH,settings_menu.cur_pos,SETTINGS_MENU_COLOR);
+  vita2d_draw_rectangle(0,0,SCREEN_WIDTH,SCREEN_HEIGHT,0x99000000);
+  vita2d_draw_rectangle(120,SCREEN_HEIGHT-settings_menu.cur_pos+70,SCREEN_WIDTH-240,260,SETTINGS_MENU_COLOR);
 #else
   vita2d_draw_texture(settings_image, 0.0f, SCREEN_HEIGHT - settings_menu.cur_pos);
 #endif
 
-  float y = SCREEN_HEIGHT - settings_menu.cur_pos + START_Y;
+  float y = SCREEN_HEIGHT - settings_menu.cur_pos + 100;
 
   int i;
   for (i = 0; i < n_settings_entries; i++) {
@@ -332,12 +332,12 @@ void drawSettingsMenu() {
 
       if (options[j].type == SETTINGS_OPTION_TYPE_CALLBACK) {
         // Item
-        float x = pgf_text_width((options[j].value==&switch2_orientation?"Screen rotation":language_container[options[j].name]));
-        pgf_draw_text(ALIGN_CENTER(SCREEN_WIDTH, x), y, SETTINGS_MENU_ITEM_COLOR, (options[j].value==&switch2_orientation?"Screen rotation":language_container[options[j].name]));
+        float x = pgf_text_width((options[j].value==&switch2_orientation?"Screen rotation":options[j].name==VITASHELL_SETTINGS_EXIT?"Exit NS2xZilla":language_container[options[j].name]));
+        pgf_draw_text(ALIGN_CENTER(SCREEN_WIDTH, x), y, SETTINGS_MENU_ITEM_COLOR, (options[j].value==&switch2_orientation?"Screen rotation":options[j].name==VITASHELL_SETTINGS_EXIT?"Exit NS2xZilla":language_container[options[j].name]));
       } else {
         // Item
-        float x = pgf_text_width((options[j].value==&switch2_orientation?"Screen rotation":language_container[options[j].name]));
-        pgf_draw_text(ALIGN_RIGHT(SCREEN_HALF_WIDTH - 10.0f, x), y, SETTINGS_MENU_ITEM_COLOR, (options[j].value==&switch2_orientation?"Screen rotation":language_container[options[j].name]));
+        float x = pgf_text_width((options[j].value==&switch2_orientation?"Screen rotation":options[j].name==VITASHELL_SETTINGS_EXIT?"Exit NS2xZilla":language_container[options[j].name]));
+        pgf_draw_text(ALIGN_RIGHT(SCREEN_HALF_WIDTH - 10.0f, x), y, SETTINGS_MENU_ITEM_COLOR, (options[j].value==&switch2_orientation?"Screen rotation":options[j].name==VITASHELL_SETTINGS_EXIT?"Exit NS2xZilla":language_container[options[j].name]));
 
         // Option
         switch (options[j].type) {
@@ -379,6 +379,14 @@ void settingsDisagree() {
 }
 
 void settingsMenuCtrl() {
+#ifdef __SWITCH2__
+  float tx,ty;
+  if(settings_menu.status==SETTINGS_MENU_OPENED && switch2TakeTap(&tx,&ty)==1) {
+    if(tx<120||tx>SCREEN_WIDTH-120||ty<70||ty>330) { closeSettingsMenu(); return; }
+    if(ty>=100+FONT_Y_SPACE && ty<100+2*FONT_Y_SPACE) { switch2_orientation=(switch2_orientation+(tx<SCREEN_HALF_WIDTH?3:1))%4; changed=1; return; }
+    if(ty>=100+4*FONT_Y_SPACE && ty<100+5*FONT_Y_SPACE) { exitShell(); return; }
+  }
+#endif
   SettingsMenuOption *option = &settings_menu_entries[settings_menu.entry_sel].options[settings_menu.option_sel];
 
   // Agreement
