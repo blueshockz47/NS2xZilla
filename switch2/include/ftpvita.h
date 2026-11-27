@@ -32,6 +32,8 @@
 void ftpvita_metrics_client(int delta);
 void ftpvita_metrics_bytes(uint64_t bytes, int upload);
 void ftpvita_metrics_snapshot(unsigned *clients, uint64_t *up, uint64_t *down);
+int ftpvita_is_recovering(void);
+unsigned ftpvita_uptime(void);
 
 /* Starts the server and writes its address and port. Returns 0, or a
    negative value when the console is not connected or the server could not
