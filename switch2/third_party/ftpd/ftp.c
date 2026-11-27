@@ -1092,10 +1092,17 @@ static void
 ftp_session_transfer(ftp_session_t *session)
 {
   int rc;
+#ifdef __SWITCH2__
+  unsigned budget=16;
+#endif
   do
   {
     rc = session->transfer(session);
-  } while(rc == 0);
+  } while(rc == 0
+#ifdef __SWITCH2__
+          && --budget != 0
+#endif
+  );
 }
 
 /*! encode a path
@@ -1913,8 +1920,10 @@ ftp_session_poll(ftp_session_t *session)
           if(pollinfo[1].revents & POLL_UNKNOWN)
             console_print(YELLOW "data_fd: revents=0x%08X\n" RESET, pollinfo[1].revents);
 
-          /* we need to transfer data */
-          if(pollinfo[1].revents & (POLLERR|POLLHUP|POLLNVAL))
+          /* Drain received payload and normal EOF even when HUP accompanies POLLIN. */
+          if((session->flags & SESSION_RECV) && !(pollinfo[1].revents & (POLLERR|POLLNVAL)) && (pollinfo[1].revents & (POLLIN|POLLHUP)))
+            ftp_session_transfer(session);
+          else if(pollinfo[1].revents & (POLLERR|POLLHUP|POLLNVAL))
           {
             ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
             ftp_send_response(session, 426, "Data connection failed\r\n");
@@ -2731,7 +2740,7 @@ retrieve_transfer(ftp_session_t *session)
     /* error sending data */
     if(rc < 0)
     {
-      if(errno == EWOULDBLOCK)
+      if(errno == EWOULDBLOCK || errno == EAGAIN || errno == EINTR)
         return LOOP_EXIT;
       console_print(RED "send: %d %s\n" RESET, errno, strerror(errno));
     }
@@ -2743,7 +2752,10 @@ retrieve_transfer(ftp_session_t *session)
     return LOOP_EXIT;
   }
 
-  /* we can try to send more data */
+  /* Count actual file payload, not directory listing bytes. */
+#ifdef __SWITCH2__
+  ftpvita_metrics_bytes((uint64_t)rc, 0);
+#endif
   session->bufferpos += rc;
   return LOOP_CONTINUE;
 }
@@ -2768,7 +2780,7 @@ store_transfer(ftp_session_t *session)
       /* can't read any more data */
       if(rc < 0)
       {
-        if(errno == EWOULDBLOCK)
+        if(errno == EWOULDBLOCK || errno == EAGAIN || errno == EINTR)
           return LOOP_EXIT;
         console_print(RED "recv: %d %s\n" RESET, errno, strerror(errno));
       }
@@ -2844,6 +2856,13 @@ ftp_xfer_file(ftp_session_t    *session,
     rc = errno;
     ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
     ftp_send_response(session, 553, "%s\r\n", strerror(rc));
+    return;
+  }
+
+  /* Reject invalid command sequences before opening/truncating a file. */
+  if(!(session->flags & (SESSION_PORT|SESSION_PASV))) {
+    ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
+    ftp_send_response(session, 503, "Bad sequence of commands\r\n");
     return;
   }
 
