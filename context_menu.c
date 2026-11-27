@@ -107,6 +107,12 @@ void drawContextMenu() {
 
   // Draw context menu
   if (ctx_menu_mode != CONTEXT_MENU_CLOSED) {
+#ifdef __SWITCH2__
+    float left=SCREEN_WIDTH-ctx_cur_menu_width;
+    vita2d_draw_rectangle(left,0,ctx_cur_menu_width,SCREEN_HEIGHT,CONTEXT_MENU_COLOR);
+    if(cur_ctx->parent) vita2d_draw_rectangle(left+cur_ctx->parent->max_width,0,cur_ctx->max_width,SCREEN_HEIGHT,CONTEXT_MENU_MORE_COLOR);
+    vita2d_draw_rectangle(left,0,2,SCREEN_HEIGHT,CONTEXT_MENU_FOCUS_COLOR);
+#else
     if (!cur_ctx->parent) {
       vita2d_draw_texture_part(context_image, SCREEN_WIDTH - ctx_cur_menu_width, 0.0f, 0.0f, 0.0f, ctx_cur_menu_width, SCREEN_HEIGHT);
     } else {
@@ -114,6 +120,7 @@ void drawContextMenu() {
       vita2d_draw_texture_part(context_more_image, SCREEN_WIDTH - ctx_cur_menu_width + cur_ctx->parent->max_width, 0.0f, 0.0f, 0.0f, cur_ctx->max_width, SCREEN_HEIGHT);
     }
 
+#endif
     ContextMenu *ctx = cur_ctx;
     if (ctx->parent)
       ctx = ctx->parent;
@@ -137,8 +144,12 @@ void drawContextMenu() {
       }
 
       if (ctx->entries[i].visibility == CTX_INVISIBLE)
-        color = INVISIBLE_COLOR;
+        color = 0xFFAAAAAA;
 
+#ifdef __SWITCH2__
+      if(i==ctx->sel && ctx->entries[i].visibility==CTX_VISIBLE) vita2d_draw_rectangle(SCREEN_WIDTH-ctx_cur_menu_width+4,y,ctx->max_width-8,FONT_Y_SPACE,0xFF383838);
+      if(ctx->entries[i].name==DELETE && ctx->entries[i].visibility==CTX_VISIBLE) color=0xFF8888FF;
+#endif
       // Draw entry text
       pgf_draw_text(SCREEN_WIDTH - ctx_cur_menu_width + CONTEXT_MENU_MARGIN, y, color, language_container[ctx->entries[i].name]);
 
@@ -178,7 +189,7 @@ void drawContextMenu() {
         }
 
         if (cur_ctx->entries[i].visibility == CTX_INVISIBLE)
-          color = INVISIBLE_COLOR;
+          color = 0xFFAAAAAA;
 
         // Draw entry text
         pgf_draw_text(SCREEN_WIDTH - ctx_cur_menu_width + ctx->max_width + CONTEXT_MENU_MARGIN, y, color, language_container[cur_ctx->entries[i].name]);
