@@ -93,6 +93,10 @@ static void log_event(const char *format, ...) {
   errno = saved_errno;
 }
 
+void ftpvita_transfer_event(const char *event, uint64_t offset, uint64_t size, int error) {
+  log_event("%s offset=%llu expected=%llu errno=%d",event,(unsigned long long)offset,(unsigned long long)size,error);
+}
+
 static void sleepFor(time_t seconds, long nanoseconds) {
   struct timespec interval = { .tv_sec = seconds, .tv_nsec = nanoseconds };
   nanosleep(&interval, NULL);
