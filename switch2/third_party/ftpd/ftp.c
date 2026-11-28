@@ -45,6 +45,9 @@
 extern void ftpvita_metrics_client(int delta);
 extern void ftpvita_metrics_bytes(uint64_t bytes, int upload);
 extern void ftpvita_metrics_failure(void);
+extern void ftpvita_transfer_event(const char *event, uint64_t offset, uint64_t size, int error);
+_Static_assert(sizeof(off_t) >= 8, "FTP requires 64-bit file offsets");
+_Static_assert(sizeof(((struct stat *)0)->st_size) >= 8, "FTP requires 64-bit file sizes");
 #endif
 
 #define POLL_UNKNOWN    (~(POLLIN|POLLPRI|POLLOUT))
@@ -709,6 +712,9 @@ ftp_session_read_file(ftp_session_t *session)
   rc = fread(session->buffer, 1, sizeof(session->buffer), session->fp);
   if(ferror(session->fp))
   {
+#ifdef __SWITCH2__
+    ftpvita_transfer_event("read error",session->filepos,session->filesize,errno);
+#endif
     console_print(RED "fread: %d %s\n" RESET, errno, strerror(errno));
     return -1;
   }
@@ -800,6 +806,9 @@ ftp_session_write_file(ftp_session_t *session)
               session->fp);
   if(ferror(session->fp))
   {
+#ifdef __SWITCH2__
+    ftpvita_transfer_event("write error",session->filepos+(uint64_t)rc,0,errno);
+#endif
     console_print(RED "fwrite: %d %s\n" RESET, errno, strerror(errno));
     return -1;
   }
@@ -809,7 +818,9 @@ ftp_session_write_file(ftp_session_t *session)
   /* adjust file position */
   session->filepos += rc;
 
+  #ifndef __SWITCH2__
   update_free_space();
+  #endif
   return rc;
 }
 
@@ -1304,7 +1315,10 @@ ftp_send_response(ftp_session_t *session,
     return;
 
 #ifdef __SWITCH2__
-  if(code==425 || code==426 || code==451) ftpvita_metrics_failure();
+  if(code==425 || code==426 || code==451) {
+    ftpvita_metrics_failure();
+    ftpvita_transfer_event(code==425?"FTP 425":code==426?"FTP 426":"FTP 451",session->filepos,session->filesize,0);
+  }
 #endif
   /* print response code and message to buffer */
   va_start(ap, fmt);
@@ -2001,7 +2015,7 @@ ftp_session_poll(ftp_session_t *session)
 static void
 update_free_space(void)
 {
-#if defined(_3DS) || defined(__SWITCH__)
+#if (defined(_3DS) || defined(__SWITCH__)) && !defined(__SWITCH2__)
 #define KiB (1024.0)
 #define MiB (1024.0*KiB)
 #define GiB (1024.0*MiB)
@@ -2771,6 +2785,9 @@ retrieve_transfer(ftp_session_t *session)
     {
       /* Detect unexpected EOF if the source shrank during retrieval. */
       if(rc == 0 && session->filepos != session->filesize) rc = -1;
+#ifdef __SWITCH2__
+      ftpvita_transfer_event(rc<0?"download failed":"download complete",session->filepos,session->filesize,0);
+#endif
       ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
       if(rc < 0)
         ftp_send_response(session, 451, "Failed to read file\r\n");
@@ -2851,6 +2868,9 @@ store_transfer(ftp_session_t *session)
         if(close_error != 0)
           console_print(RED "fclose: %d %s\n" RESET, errno, strerror(errno));
       }
+#ifdef __SWITCH2__
+      ftpvita_transfer_event(rc==0&&close_error==0?"upload complete":"upload failed",session->filepos,0,0);
+#endif
       ftp_session_set_state(session, COMMAND_STATE, CLOSE_PASV | CLOSE_DATA);
 
       if(rc == 0 && close_error != 0)
@@ -4089,6 +4109,9 @@ FTP_DECLARE(REST)
     return;
   }
   session->filepos = pos;
+#ifdef __SWITCH2__
+  ftpvita_transfer_event("REST accepted",pos,0,0);
+#endif
   ftp_send_response(session, 350, "Restart position accepted\r\n");
 }
 
